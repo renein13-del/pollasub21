@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es-PY">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — La Polla</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__brand">
+    <span class="topbar__mark">ADM</span>
+    <span class="topbar__name">LA&nbsp;POLLA</span>
+  </div>
+  <div class="topbar__session" id="adminSessionPill" hidden>
+    <span>Sesión de administrador activa</span>
+    <button class="session-logout" id="adminLogoutBtn" type="button">Salir</button>
+  </div>
+  <a class="btn btn--ghost" href="/" style="text-decoration:none;">Ir a la web</a>
+</header>
+
+<div class="conn-banner" id="connBanner" role="alert" hidden></div>
+
+<main>
+
+  <!-- ============ LOGIN DE ADMINISTRADOR ============ -->
+  <section class="card-ticket" id="adminLoginSection">
+    <div class="ticket" style="grid-template-columns: 1fr;">
+      <div class="ticket__main" style="border-right:none;">
+        <p class="ticket__eyebrow">Acceso restringido</p>
+        <h2 class="ticket__title">Ingresá la contraseña de administrador</h2>
+        <form id="adminLoginForm" class="ticket__form" novalidate>
+          <label class="field">
+            <span class="field__label">Contraseña</span>
+            <input class="field__input" type="password" name="password" placeholder="Contraseña de administrador" required autocomplete="current-password">
+          </label>
+          <button class="btn btn--primary" type="submit">Entrar</button>
+          <p class="field__error" id="adminLoginError" role="alert" hidden></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PANEL (oculto hasta iniciar sesión) ============ -->
+  <div id="adminPanel" hidden>
+
+    <section class="hero" style="padding-top:24px;">
+      <p class="hero__eyebrow">Panel interno</p>
+      <h1 class="hero__title">Cargar partidos<br>y resultados</h1>
+    </section>
+
+    <!-- ============ CREAR PARTIDO ============ -->
+    <section class="section" aria-labelledby="crearTitulo">
+      <div class="section__head">
+        <h2 class="section__title" id="crearTitulo">Nuevo partido</h2>
+        <p class="section__hint">Ej: Olimpia vs Cerro Porteño</p>
+      </div>
+      <form id="crearForm" class="ticket__form" style="max-width:480px;" novalidate>
+        <label class="field">
+          <span class="field__label">Equipo local</span>
+          <input class="field__input" type="text" name="local_team" placeholder="Ej: Olimpia" required>
+        </label>
+        <label class="field">
+          <span class="field__label">Equipo visitante</span>
+          <input class="field__input" type="text" name="away_team" placeholder="Ej: Cerro Porteño" required>
+        </label>
+        <label class="field">
+          <span class="field__label">Fecha / jornada (opcional)</span>
+          <input class="field__input" type="number" name="matchday" placeholder="Ej: 1" min="1">
+        </label>
+        <button class="btn btn--primary" type="submit">Crear partido</button>
+        <p class="field__error" id="crearError" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <!-- ============ PARTIDOS PROGRAMADOS: cargar resultado ============ -->
+    <section class="section" aria-labelledby="programadosTitulo">
+      <div class="section__head">
+        <h2 class="section__title" id="programadosTitulo">Partidos programados</h2>
+        <p class="section__hint">Elegí el resultado final para calificar los pronósticos.</p>
+      </div>
+      <div class="matches" id="scheduledList">
+        <p class="empty-state">Cargando…</p>
+      </div>
+    </section>
+
+    <!-- ============ PARTIDOS FINALIZADOS ============ -->
+    <section class="section" aria-labelledby="finalizadosTitulo">
+      <div class="section__head">
+        <h2 class="section__title" id="finalizadosTitulo">Ya finalizados</h2>
+      </div>
+      <div class="matches" id="finishedList">
+        <p class="empty-state">Cargando…</p>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>La Polla · panel de administrador.</p>
+</footer>
+
+<script src="admin.js"></script>
+</body>
+</html>
