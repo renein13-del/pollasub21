@@ -1,0 +1,581 @@
+/* ===========================================================
+   Tokens
+   =========================================================== */
+:root {
+  --bg: #0D0D0E;
+  --bg-elevated: #17171A;
+  --bg-elevated-2: #1F1F23;
+  --line: #2C2C31;
+  --ink: #F1EEE8;
+  --ink-dim: #96979C;
+  --gold: #F2B705;
+  --gold-ink: #1A1400;
+  --red: #E4572E;
+  --silver: #C9CBCF;
+
+  --font-display: "Anton", sans-serif;
+  --font-body: "Work Sans", sans-serif;
+  --font-mono: "Space Mono", monospace;
+
+  --radius: 14px;
+  --container: 880px;
+}
+
+* { box-sizing: border-box; }
+
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(242, 183, 5, 0.08), transparent 60%);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; margin: 0; }
+
+a { color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ===========================================================
+   Topbar
+   =========================================================== */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.topbar__mark {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--bg);
+  background: var(--gold);
+  padding: 3px 7px;
+  border-radius: 5px;
+}
+
+.topbar__name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.03em;
+}
+
+.topbar__session {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-dim);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar__session.is-active {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.session-logout {
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ===========================================================
+   Layout helpers
+   =========================================================== */
+main {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 20px 80px;
+}
+
+.section {
+  margin-top: 64px;
+}
+
+.section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 14px;
+  margin-bottom: 24px;
+}
+
+.section__title {
+  font-size: 26px;
+  letter-spacing: 0.02em;
+}
+
+.section__hint {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  margin: 0;
+}
+
+.empty-state {
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+/* ===========================================================
+   Hero
+   =========================================================== */
+.hero {
+  padding: 64px 0 24px;
+  text-align: center;
+}
+
+.hero__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 18px;
+}
+
+.hero__title {
+  font-size: clamp(34px, 6vw, 58px);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.hero__sub {
+  max-width: 480px;
+  margin: 18px auto 0;
+  color: var(--ink-dim);
+  font-size: 15px;
+}
+
+/* ===========================================================
+   Signature element: carnet de socio (ticket card)
+   =========================================================== */
+.card-ticket {
+  margin-top: 32px;
+}
+
+.ticket {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+}
+
+.ticket__main {
+  padding: 32px;
+  border-right: 2px dashed var(--line);
+  position: relative;
+}
+
+/* Perforación de ticket: semicírculos arriba/abajo del corte */
+.ticket__main::before,
+.ticket__main::after {
+  content: "";
+  position: absolute;
+  right: -13px;
+  width: 26px;
+  height: 26px;
+  background: var(--bg);
+  border-radius: 50%;
+  border: 1px solid var(--line);
+}
+.ticket__main::before { top: -13px; }
+.ticket__main::after { bottom: -13px; }
+
+.ticket__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 6px;
+}
+
+.ticket__title {
+  font-size: 24px;
+  margin-bottom: 22px;
+}
+
+.ticket__form {
+  display: grid;
+  gap: 16px;
+  max-width: 360px;
+}
+
+.ticket__stub {
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--bg-elevated-2),
+    var(--bg-elevated-2) 10px,
+    var(--bg-elevated) 10px,
+    var(--bg-elevated) 20px
+  );
+}
+
+.ticket__stub-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 640px) {
+  .ticket { grid-template-columns: 1fr; }
+  .ticket__main { border-right: none; border-bottom: 2px dashed var(--line); }
+  .ticket__main::before, .ticket__main::after { left: -13px; right: auto; top: auto; }
+  .ticket__main::before { bottom: -13px; }
+  .ticket__main::after { bottom: -13px; left: auto; right: -13px; }
+}
+
+/* ===========================================================
+   Forms & buttons
+   =========================================================== */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field--compact { gap: 6px; }
+
+.field__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.field__input {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px 12px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.field__input:focus {
+  border-color: var(--gold);
+}
+
+.field__error {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--red);
+  margin: 0;
+}
+
+.btn {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 8px;
+  padding: 12px 18px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn--primary {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+
+.btn--primary:hover { opacity: 0.9; }
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn--ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===========================================================
+   Partidos: tarjetas estilo marcador
+   =========================================================== */
+.matches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.match-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.match-card__teams {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  text-align: center;
+}
+
+.match-card__vs {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.match-card__meta {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.picks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.pick-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 7px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.pick-btn:hover:not(:disabled) { border-color: var(--ink-dim); color: var(--ink); }
+
+.pick-btn.is-selected[data-pick="LOCAL"] { background: var(--silver); border-color: var(--silver); color: #101013; }
+.pick-btn.is-selected[data-pick="EMPATE"] { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.pick-btn.is-selected[data-pick="VISITA"] { background: var(--red); border-color: var(--red); color: #2A0900; }
+
+.pick-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.match-card__result {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--gold);
+}
+
+/* ===========================================================
+   Tabla de posiciones
+   =========================================================== */
+.board {
+  display: grid;
+  gap: 2px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.board__row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--bg-elevated);
+}
+
+.board__row--head {
+  background: var(--bg-elevated-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.board__pos {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--gold);
+  text-align: center;
+}
+
+.board__name-nick { font-weight: 600; }
+.board__name-full {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.board__pts {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.board__pts-sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-dim);
+}
+
+/* ===========================================================
+   Footer
+   =========================================================== */
+/* ===========================================================
+   Grupos de amigos / selector de liga
+   =========================================================== */
+.groups-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.groups-bar__tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.group-tab {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.group-tab.is-active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-ink);
+  font-weight: 700;
+}
+
+.join-group-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.join-group-form .field__input {
+  width: 120px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.join-group-form .btn {
+  padding: 8px 12px;
+}
+
+.matchday-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.matchday-filter .field__input {
+  width: 90px;
+}
+
+.footer {
+  text-align: center;
+  padding: 32px 20px 48px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+/* ===========================================================
+   Banner de estado de conexión
+   =========================================================== */
+.conn-banner {
+  background: var(--red);
+  color: #2A0900;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 12px 24px;
+  text-align: center;
+}
+
+.conn-banner code {
+  background: rgba(0, 0, 0, 0.18);
+  padding: 2px 6px;
+  border-radius: 4px;
+}

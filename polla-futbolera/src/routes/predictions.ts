@@ -1,0 +1,88 @@
+import { Router } from "express";
+import { z } from "zod";
+import { query, queryOne } from "../db";
+import { requireAuth, AuthedRequest } from "../auth";
+import { Match, Prediction } from "../types";
+
+export const predictionsRouter = Router();
+
+const createPredictionSchema = z.object({
+  match_id: z.number().int(),
+  user_pick: z.enum(["LOCAL", "EMPATE", "VISITA"]),
+});
+
+// POST /predictions -> registrar (o corregir) el pronóstico del usuario logueado
+// Requiere estar autenticado (Authorization: Bearer <token>).
+// Solo se permite mientras el partido esté SCHEDULED (antes del inicio).
+predictionsRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = createPredictionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+  const { match_id, user_pick } = parsed.data;
+  const user_id = req.userId!;
+
+  const match = await queryOne<Match>("SELECT * FROM matches WHERE id = $1", [match_id]);
+  if (!match) return res.status(404).json({ error: "Partido no encontrado" });
+
+  if (match.status !== "SCHEDULED") {
+    return res.status(409).json({
+      error: "No se pueden cargar/editar pronósticos de un partido ya finalizado",
+    });
+  }
+
+  if (match.matchday != null) {
+    const deadline = await queryOne<{ vote_deadline: string }>(
+      "SELECT vote_deadline FROM matchday_deadlines WHERE matchday = $1",
+      [match.matchday]
+    );
+    if (deadline && new Date() >= new Date(deadline.vote_deadline)) {
+      return res.status(409).json({
+        error: `Ya pasó el horario límite para votar en la fecha ${match.matchday}.`,
+      });
+    }
+  }
+
+  // Upsert: si el usuario ya pronosticó este partido, se actualiza su pick
+  const existing = await queryOne<Prediction>(
+    "SELECT * FROM predictions WHERE user_id = $1 AND match_id = $2",
+    [user_id, match_id]
+  );
+
+  if (existing) {
+    await query("UPDATE predictions SET user_pick = $1 WHERE id = $2", [user_pick, existing.id]);
+  } else {
+    await query(
+      "INSERT INTO predictions (user_id, match_id, user_pick) VALUES ($1, $2, $3)",
+      [user_id, match_id, user_pick]
+    );
+  }
+
+  const prediction = await queryOne(
+    "SELECT * FROM predictions WHERE user_id = $1 AND match_id = $2",
+    [user_id, match_id]
+  );
+
+  res.status(existing ? 200 : 201).json(prediction);
+});
+
+// GET /predictions/mine -> historial de pronósticos del usuario logueado
+predictionsRouter.get("/mine", requireAuth, async (req: AuthedRequest, res) => {
+  const predictions = await query(
+    `SELECT p.*, m.local_team, m.away_team, m.status as match_status, m.result as match_result
+     FROM predictions p
+     JOIN matches m ON m.id = p.match_id
+     WHERE p.user_id = $1
+     ORDER BY p.id DESC`,
+    [req.userId]
+  );
+  res.json(predictions);
+});
+
+// GET /predictions/match/:matchId -> todos los pronósticos de un partido (requiere sesión)
+predictionsRouter.get("/match/:matchId", requireAuth, async (req, res) => {
+  const predictions = await query("SELECT * FROM predictions WHERE match_id = $1", [
+    req.params.matchId,
+  ]);
+  res.json(predictions);
+});
