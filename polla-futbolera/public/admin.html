@@ -124,6 +124,12 @@
       </div>
       <form id="pointsForm" class="ticket__form" style="max-width:480px;" novalidate>
         <label class="field">
+          <span class="field__label">Filtrar por grupo</span>
+          <select class="field__input" id="pointsGroupFilter">
+            <option value="">Todos los grupos</option>
+          </select>
+        </label>
+        <label class="field">
           <span class="field__label">Usuario</span>
           <select class="field__input" name="user_id" id="pointsUserSelect">
             <option value="">Cargando usuarios…</option>
@@ -145,6 +151,15 @@
         <h2 class="section__title" id="specialTitulo">Puntos extra</h2>
         <p class="section__hint">Campeón (10 pts) · Vicecampeón (5 pts) · Goleador (5 pts). Cargá la respuesta correcta cuando se sepa.</p>
       </div>
+      <form id="specialDeadlineForm" class="ticket__form" style="max-width:420px; margin-bottom:20px;" novalidate>
+        <label class="field">
+          <span class="field__label">Horario límite para cargar pronósticos especiales</span>
+          <input class="field__input" type="datetime-local" name="deadline">
+        </label>
+        <button class="btn btn--ghost" type="submit">Guardar horario límite</button>
+        <p class="field__error" id="specialDeadlineError" role="alert" hidden></p>
+        <p class="section__hint" id="specialDeadlineStatus"></p>
+      </form>
       <div id="specialAdminList" style="display:grid; gap:16px; max-width:520px;">
         <p class="empty-state">Cargando…</p>
       </div>
@@ -156,6 +171,12 @@
         <h2 class="section__title" id="pronosticosManualesTitulo">Cargar pronósticos ya hechos</h2>
         <p class="section__hint">Para volcar lo que la gente ya votó antes de usar este sistema. Solo vos podés hacer esto.</p>
       </div>
+      <label class="field" style="max-width:420px; margin-bottom:16px;">
+        <span class="field__label">Filtrar usuarios por grupo</span>
+        <select class="field__input" id="manualGroupFilter">
+          <option value="">Todos los grupos</option>
+        </select>
+      </label>
       <label class="field" style="max-width:420px; margin-bottom:16px;">
         <span class="field__label">Elegí el partido</span>
         <select class="field__input" id="manualMatchSelect">

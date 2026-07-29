@@ -46,6 +46,7 @@ Entrando al dominio (o a `http://localhost:3000` en local):
 3. La sesión queda guardada en el navegador; desde ahí ya puede pronosticar tocando **Local / Empate / Visita** en cada partido.
 4. La tabla de posiciones que ve es la de **su grupo** (no una tabla general con todos) — así cada uno compite solo contra su propia gente.
 5. Si alguien pertenece a más de un grupo (por ejemplo, se unió con otro código después), le aparece una pestaña por cada grupo para cambiar entre tablas.
+6. Los partidos aparecen filtrados **por la fecha más próxima que todavía tenga partidos programados** (no todos juntos); hay un selector arriba para cambiar de fecha manualmente.
 
 ## Panel de administrador
 
@@ -56,10 +57,10 @@ Entrando a `/admin.html` (hay un link discreto al pie de la web principal) se pi
 3. **Cargar el resultado final** de cada partido programado — dispara el Match Engine y califica todos los pronósticos.
 4. **Corregir un resultado ya cargado** — en "Ya finalizados", tocando "Corregir resultado" volvés a elegir Local/Empate/Visita. El sistema primero revierte los puntos que se habían otorgado con el resultado viejo y recién ahí aplica el nuevo, así nadie queda con puntos de más.
 5. **Cargar puntos que los usuarios ya tenían** — buscás al usuario (ya registrado) y le sumás (o restás, con un número negativo) puntos manuales. Útil para arrancar el sistema a mitad de torneo sin perder lo que ya habían acumulado.
-6. **Cargar pronósticos ya hechos** — elegís un partido y ves la lista de todos los usuarios registrados con 3 botones (L/E/V) cada uno; tocás el que corresponda para cargar el pronóstico que esa persona ya había hecho por fuera del sistema (por ejemplo, en un grupo de WhatsApp, antes de que existiera esta web). Solo el administrador puede hacer esto — los usuarios no tienen forma de cargar o cambiar un pronóstico que vos les hayas puesto. Si el partido ya tiene resultado cargado, califica el pronóstico al toque; si no, se califica cuando cargues el resultado más adelante. Una vez cargado, cada usuario lo ve reflejado como su propio pronóstico al entrar a la web.
-7. **Grupos de amigos** — creás un grupo (le ponés nombre) y el sistema genera un código de invitación. Compartís ese código con tus amigos; cada uno lo carga en la web para unirse. Cada grupo tiene su propia tabla de posiciones, calculada sobre los mismos partidos y pronósticos.
+6. **Cargar pronósticos ya hechos** — elegís un partido y ves la lista de todos los usuarios registrados (o solo los de un grupo, si usás el filtro) con 3 botones (L/E/V) cada uno; tocás el que corresponda para cargar el pronóstico que esa persona ya había hecho por fuera del sistema (por ejemplo, en un grupo de WhatsApp, antes de que existiera esta web). Solo el administrador puede hacer esto — los usuarios no tienen forma de cargar o cambiar un pronóstico que vos les hayas puesto. Si el partido ya tiene resultado cargado, califica el pronóstico al toque; si no, se califica cuando cargues el resultado más adelante. Una vez cargado, cada usuario lo ve reflejado como su propio pronóstico al entrar a la web.
+7. **Grupos de amigos** — creás un grupo (le ponés nombre) y el sistema genera un código de invitación. Compartís ese código con tus amigos; cada uno lo carga en la web para unirse. Cada grupo tiene su propia tabla de posiciones, calculada sobre los mismos partidos y pronósticos. Además, tanto "Cargar puntos" como "Cargar pronósticos ya hechos" tienen un filtro para ver solo los usuarios de un grupo puntual — útil cuando tenés varios grupos y no querés desplazarte por una lista larga con todos mezclados.
 8. **Horario límite para votar, por fecha** — cargás, para cada fecha/jornada, el horario máximo hasta el cual se puede pronosticar (ya con los 5 minutos de margen descontados: si la fecha arranca el viernes 17:00, cargás viernes 16:55). A partir de ese momento, nadie puede cargar ni cambiar su pronóstico para ningún partido de esa fecha — el servidor lo rechaza aunque alguien intente forzarlo. Es uno por fecha, no por partido individual, para no tener que cargarlo partido por partido.
-9. **Puntos extra (Campeón / Vicecampeón / Goleador)** — cada usuario carga, desde la web, quién cree que va a salir campeón, vicecampeón y goleador del torneo (texto libre). Cuando se sabe el resultado, cargás la respuesta correcta desde el panel — Campeón vale 10 puntos, Vicecampeón 5 y Goleador 5. Se reparten solos a quienes acertaron (comparando sin importar mayúsculas/espacios). Si te equivocaste al cargar la respuesta, podés corregirla — revierte los puntos viejos antes de aplicar los nuevos, igual que con los resultados de los partidos.
+9. **Puntos extra (Campeón / Vicecampeón / Goleador)** — cada usuario carga, desde la web, quién cree que va a salir campeón, vicecampeón y goleador del torneo (texto libre). Cuando se sabe el resultado, cargás la respuesta correcta desde el panel — Campeón vale 10 puntos, Vicecampeón 5 y Goleador 5. Se reparten solos a quienes acertaron (comparando sin importar mayúsculas/espacios). Si te equivocaste al cargar la respuesta, podés corregirla — revierte los puntos viejos antes de aplicar los nuevos, igual que con los resultados de los partidos. También podés cargarle un horario límite propio (uno solo, para las 3 categorías juntas) — pasado ese momento nadie puede cargar ni cambiar su pronóstico especial.
 
 Es una sola contraseña compartida (no un usuario más), pensada para quien organiza la polla.
 
@@ -163,9 +164,13 @@ Desde Render podés abrir una "Shell" del servicio (pestaña **Shell** en el das
 - `DELETE /admin/matchdays/:matchday/deadline` — quita el límite de esa fecha
 - `GET /admin/special` — categorías especiales + todos los pronósticos cargados
 - `POST /admin/special/:category/settle` — `{ "correct_answer": "Olimpia" }` carga (o corrige) la respuesta correcta de CAMPEON/VICECAMPEON/GOLEADOR y reparte los puntos
+- `POST /admin/special/deadline` — `{ "deadline": "2026-08-01T00:00" }` horario límite único para las 3 categorías especiales
+- `DELETE /admin/special/deadline` — quita el límite
+- `GET /admin/groups/:id/members` — usuarios de un grupo puntual (para filtrar "Cargar puntos" y "Cargar pronósticos ya hechos")
 
-### Pronósticos especiales (requieren `Authorization: Bearer <token>` de usuario, salvo la lista de categorías)
+### Pronósticos especiales (requieren `Authorization: Bearer <token>` de usuario, salvo lo público)
 - `GET /special/categories` (público) — categorías, puntos y si ya se resolvieron
+- `GET /special/deadline` (público) — horario límite para cargar pronósticos especiales
 - `GET /special/mine` — mis pronósticos especiales
 - `POST /special` — `{ "category": "CAMPEON", "answer": "Olimpia" }`
 

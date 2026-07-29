@@ -13,6 +13,12 @@ specialRouter.get("/categories", async (_req, res) => {
   res.json(rows);
 });
 
+// GET /special/deadline -> horario límite para cargar pronósticos especiales (público)
+specialRouter.get("/deadline", async (_req, res) => {
+  const row = await queryOne("SELECT deadline FROM special_deadline WHERE id = 1");
+  res.json(row || null);
+});
+
 // GET /special/mine -> mis pronósticos especiales
 specialRouter.get("/mine", requireAuth, async (req: AuthedRequest, res) => {
   const rows = await query("SELECT * FROM special_predictions WHERE user_id = $1", [req.userId]);
@@ -39,6 +45,13 @@ specialRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
   if (!cat) return res.status(404).json({ error: "Categoría no encontrada" });
   if (cat.settled) {
     return res.status(409).json({ error: "Esta categoría ya se resolvió, no se puede cambiar" });
+  }
+
+  const deadline = await queryOne<{ deadline: string }>(
+    "SELECT deadline FROM special_deadline WHERE id = 1"
+  );
+  if (deadline && new Date() >= new Date(deadline.deadline)) {
+    return res.status(409).json({ error: "Ya pasó el horario límite para cargar pronósticos especiales" });
   }
 
   const existing = await queryOne(

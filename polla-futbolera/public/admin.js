@@ -64,6 +64,7 @@ function showPanel() {
   loadGroups();
   loadDeadlines();
   loadSpecialAdmin();
+  loadSpecialDeadline();
 }
 
 function showLogin() {
@@ -341,6 +342,52 @@ function renderMatchResultCard(match, isFinished) {
    ============================================================ */
 const specialAdminList = document.getElementById("specialAdminList");
 const specialLabels = { CAMPEON: "Campeón", VICECAMPEON: "Vicecampeón", GOLEADOR: "Goleador" };
+const specialDeadlineForm = document.getElementById("specialDeadlineForm");
+const specialDeadlineError = document.getElementById("specialDeadlineError");
+const specialDeadlineStatus = document.getElementById("specialDeadlineStatus");
+
+async function loadSpecialDeadline() {
+  try {
+    const res = await fetch(`${API}/special/deadline`);
+    const row = await res.json();
+    specialDeadlineStatus.textContent = row
+      ? `Horario actual: se puede votar hasta ${formatDeadline(row.deadline)}`
+      : "Todavía no cargaste un horario límite (por ahora no hay restricción).";
+  } catch {
+    specialDeadlineStatus.textContent = "";
+  }
+}
+
+specialDeadlineForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  specialDeadlineError.hidden = true;
+
+  const deadline = new FormData(specialDeadlineForm).get("deadline");
+  if (!deadline) return;
+
+  try {
+    const res = await fetch(`${API}/admin/special/deadline`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ deadline }),
+    });
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+
+    if (!res.ok) {
+      specialDeadlineError.textContent = data.error || "No se pudo guardar el horario.";
+      specialDeadlineError.hidden = false;
+      return;
+    }
+
+    loadSpecialDeadline();
+  } catch {
+    specialDeadlineError.textContent = "No se pudo conectar con el servidor.";
+    specialDeadlineError.hidden = false;
+    checkServerConnection();
+  }
+});
+
 
 async function loadSpecialAdmin() {
   try {
@@ -425,6 +472,9 @@ function renderSpecialAdminCard(cat, picks) {
    ============================================================ */
 const manualMatchSelect = document.getElementById("manualMatchSelect");
 const manualPredictionsList = document.getElementById("manualPredictionsList");
+const manualGroupFilter = document.getElementById("manualGroupFilter");
+
+manualGroupFilter.addEventListener("change", loadManualPredictions);
 
 function populateManualMatchSelect(matches) {
   const current = manualMatchSelect.value;
@@ -451,7 +501,10 @@ async function loadManualPredictions() {
   manualPredictionsList.innerHTML = `<p class="empty-state">Cargando…</p>`;
 
   try {
-    const usersRes = await fetch(`${API}/admin/users`, { headers: adminHeaders() });
+    const groupId = manualGroupFilter.value;
+    const usersUrl = groupId ? `${API}/admin/groups/${groupId}/members` : `${API}/admin/users`;
+
+    const usersRes = await fetch(usersUrl, { headers: adminHeaders() });
     if (usersRes.status === 401) return showLogin();
     const usersForManualPredictions = await usersRes.json();
 
@@ -523,10 +576,16 @@ const pointsForm = document.getElementById("pointsForm");
 const pointsError = document.getElementById("pointsError");
 const pointsSuccess = document.getElementById("pointsSuccess");
 const pointsUserSelect = document.getElementById("pointsUserSelect");
+const pointsGroupFilter = document.getElementById("pointsGroupFilter");
+
+pointsGroupFilter.addEventListener("change", () => loadUsersForPoints());
 
 async function loadUsersForPoints() {
+  const groupId = pointsGroupFilter.value;
+  const url = groupId ? `${API}/admin/groups/${groupId}/members` : `${API}/admin/users`;
+
   try {
-    const res = await fetch(`${API}/admin/users`, { headers: adminHeaders() });
+    const res = await fetch(url, { headers: adminHeaders() });
     if (res.status === 401) return showLogin();
     const users = await res.json();
 
@@ -537,7 +596,7 @@ async function loadUsersForPoints() {
               `<option value="${u.id}">${escapeHtml(u.nickname)} — ${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)} (${u.total_points} pts)</option>`
           )
           .join("")
-      : `<option value="">Todavía no hay usuarios registrados</option>`;
+      : `<option value="">No hay usuarios en este grupo</option>`;
   } catch {
     pointsUserSelect.innerHTML = `<option value="">No se pudo cargar</option>`;
   }
@@ -696,6 +755,14 @@ deadlineForm.addEventListener("submit", async (e) => {
 /* ============================================================
    Grupos de amigos
    ============================================================ */
+function populateGroupFilterSelect(select, groups) {
+  const current = select.value;
+  select.innerHTML =
+    `<option value="">Todos los grupos</option>` +
+    groups.map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join("");
+  select.value = current;
+}
+
 const createGroupForm = document.getElementById("createGroupForm");
 const groupError = document.getElementById("groupError");
 const groupsList = document.getElementById("groupsList");
@@ -705,6 +772,9 @@ async function loadGroups() {
     const res = await fetch(`${API}/admin/groups`, { headers: adminHeaders() });
     if (res.status === 401) return showLogin();
     const groups = await res.json();
+
+    populateGroupFilterSelect(pointsGroupFilter, groups);
+    populateGroupFilterSelect(manualGroupFilter, groups);
 
     if (!groups.length) {
       groupsList.innerHTML = `<p class="empty-state">Todavía no creaste ningún grupo.</p>`;

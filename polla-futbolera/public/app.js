@@ -306,8 +306,12 @@ const matchdayFilter = document.getElementById("matchdayFilter");
 let allMatches = [];
 let predictionsByMatch = {};
 let deadlinesByMatchday = {};
+let userSelectedMatchday = false;
 
-matchdayFilter.addEventListener("change", renderMatches);
+matchdayFilter.addEventListener("change", () => {
+  userSelectedMatchday = true;
+  renderMatches();
+});
 
 async function loadDeadlines() {
   try {
@@ -377,7 +381,25 @@ function populateMatchdayFilter(matches) {
   const current = matchdayFilter.value;
   matchdayFilter.innerHTML = `<option value="">Todas</option>` +
     matchdays.map((d) => `<option value="${d}">Fecha ${d}</option>`).join("");
-  matchdayFilter.value = current;
+
+  if (userSelectedMatchday) {
+    matchdayFilter.value = current;
+    return;
+  }
+
+  // Por defecto: la fecha más próxima que todavía tenga partidos programados
+  // (no "todas"), para no mostrar 22 fechas juntas apenas se entra.
+  const scheduledMatchdays = matches
+    .filter((m) => m.status === "SCHEDULED" && m.matchday != null)
+    .map((m) => m.matchday);
+
+  const defaultMatchday = scheduledMatchdays.length
+    ? Math.min(...scheduledMatchdays)
+    : matchdays.length
+    ? matchdays[matchdays.length - 1]
+    : "";
+
+  matchdayFilter.value = defaultMatchday;
 }
 
 function renderMatches() {
@@ -532,47 +554,63 @@ async function loadSpecial() {
   specialSection.hidden = false;
 
   try {
-    const [catRes, mineRes] = await Promise.all([
+    const [catRes, mineRes, deadlineRes] = await Promise.all([
       fetch(`${API}/special/categories`),
       fetch(`${API}/special/mine`, { headers: authHeaders() }),
+      fetch(`${API}/special/deadline`),
     ]);
     const categories = await catRes.json();
     const mine = mineRes.ok ? await mineRes.json() : [];
+    const deadlineRow = deadlineRes.ok ? await deadlineRes.json() : null;
+
+    const deadlinePassed = deadlineRow ? new Date() >= new Date(deadlineRow.deadline) : false;
 
     const mineByCategory = {};
     mine.forEach((p) => (mineByCategory[p.category] = p));
 
     specialList.innerHTML = "";
+    if (deadlineRow) {
+      const note = document.createElement("p");
+      note.className = "section__hint";
+      note.style.gridColumn = "1 / -1";
+      note.textContent = deadlinePassed
+        ? "Ya pasó el horario límite para cargar pronósticos especiales."
+        : `Podés cargarlos hasta: ${formatDeadline(deadlineRow.deadline)}`;
+      if (deadlinePassed) note.style.color = "var(--red)";
+      specialList.appendChild(note);
+    }
+
     categories.forEach((cat) => {
-      specialList.appendChild(renderSpecialCard(cat, mineByCategory[cat.category]));
+      specialList.appendChild(renderSpecialCard(cat, mineByCategory[cat.category], deadlinePassed));
     });
   } catch {
     specialList.innerHTML = `<p class="empty-state">No se pudieron cargar los pronósticos especiales.</p>`;
   }
 }
 
-function renderSpecialCard(cat, mine) {
+function renderSpecialCard(cat, mine, deadlinePassed) {
   const card = document.createElement("div");
   card.className = "match-card";
 
   const hit = mine && cat.settled && mine.points_earned > 0;
+  const locked = cat.settled || deadlinePassed;
 
   card.innerHTML = `
     <p class="match-card__meta">${escapeHtml(specialLabels[cat.category] || cat.category)} · ${cat.points} pts</p>
     <form class="ticket__form" style="gap:8px;">
       <input class="field__input" type="text" name="answer" maxlength="60"
         placeholder="Tu pronóstico" value="${mine ? escapeHtml(mine.answer) : ""}"
-        ${cat.settled ? "disabled" : ""}>
-      ${cat.settled ? "" : `<button class="btn btn--ghost" type="submit">Guardar</button>`}
+        ${locked ? "disabled" : ""}>
+      ${locked ? "" : `<button class="btn btn--ghost" type="submit">Guardar</button>`}
       <p class="field__error" hidden></p>
     </form>
-    ${cat.settled ? `<p class="match-card__result" style="color:${hit ? "var(--gold)" : "var(--ink-dim)"};">Resultado correcto: ${escapeHtml(cat.correct_answer)}${mine ? (hit ? " · ¡Acertaste!" : "") : ""}</p>` : ""}
+    ${cat.settled ? `<p class="match-card__result" style="color:${hit ? "var(--gold)" : "var(--ink-dim)"};">Correcto: ${escapeHtml(cat.correct_answer)}${hit ? " · ¡Acertaste!" : ""}</p>` : ""}
   `;
 
   const form = card.querySelector("form");
   const errorEl = card.querySelector(".field__error");
 
-  if (!cat.settled) {
+  if (!locked) {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       errorEl.hidden = true;

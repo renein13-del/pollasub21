@@ -322,3 +322,46 @@ adminRouter.delete("/matchdays/:matchday/deadline", async (req, res) => {
   await query("DELETE FROM matchday_deadlines WHERE matchday = $1", [req.params.matchday]);
   res.json({ message: "Horario límite eliminado" });
 });
+
+/* ============================================================
+   Horario límite para los pronósticos especiales
+   ============================================================ */
+const specialDeadlineSchema = z.object({ deadline: z.string().min(1) });
+
+adminRouter.post("/special/deadline", async (req, res) => {
+  const parsed = specialDeadlineSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Ingresá una fecha y hora válida" });
+
+  const deadlineDate = new Date(parsed.data.deadline);
+  if (Number.isNaN(deadlineDate.getTime())) {
+    return res.status(400).json({ error: "Fecha y hora inválida" });
+  }
+
+  const row = await queryOne(
+    `INSERT INTO special_deadline (id, deadline) VALUES (1, $1)
+     ON CONFLICT (id) DO UPDATE SET deadline = EXCLUDED.deadline
+     RETURNING *`,
+    [deadlineDate.toISOString()]
+  );
+  res.json(row);
+});
+
+adminRouter.delete("/special/deadline", async (_req, res) => {
+  await query("DELETE FROM special_deadline WHERE id = 1");
+  res.json({ message: "Horario límite eliminado" });
+});
+
+/* ============================================================
+   Usuarios filtrados por grupo (para manejar cada mini-liga aparte)
+   ============================================================ */
+adminRouter.get("/groups/:id/members", async (req, res) => {
+  const rows = await query(
+    `SELECT u.id, u.first_name, u.last_name, u.nickname, u.total_points
+     FROM users u
+     JOIN group_members gm ON gm.user_id = u.id
+     WHERE gm.group_id = $1
+     ORDER BY u.nickname`,
+    [req.params.id]
+  );
+  res.json(rows);
+});

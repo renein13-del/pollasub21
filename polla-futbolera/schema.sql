@@ -115,3 +115,11 @@ CREATE TABLE IF NOT EXISTS special_predictions (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, category)
 );
+
+-- Horario límite único para los pronósticos especiales (Campeón/Vicecampeón/Goleador),
+-- separado del de cada fecha de partidos. Fila única (id siempre 1).
+CREATE TABLE IF NOT EXISTS special_deadline (
+    id        INTEGER PRIMARY KEY DEFAULT 1,
+    deadline  TIMESTAMPTZ NOT NULL,
+    CHECK (id = 1)
+);
