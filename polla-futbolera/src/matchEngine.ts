@@ -6,25 +6,33 @@ const POINTS_PER_HIT = 1;
 export class MatchEngineError extends Error {}
 
 /**
- * Registra el resultado oficial de un partido y dispara la calificación
- * automática de todos los pronósticos asociados.
+ * Registra el resultado oficial de un partido y califica los pronósticos.
  *
- * Es idempotente a nivel de partido: si el partido ya está FINISHED,
- * no se vuelve a calificar (evita duplicar puntos si se llama dos veces).
+ * - Si el partido está SCHEDULED: lo califica por primera vez.
+ * - Si el partido ya está FINISHED y `force` es true: es una CORRECCIÓN —
+ *   primero revierte los puntos que ya se habían otorgado con el resultado
+ *   viejo, y recién ahí aplica el resultado nuevo. Así nunca queda un
+ *   usuario con puntos de más por un resultado cargado mal.
+ * - Si ya está FINISHED y `force` es false: rechaza (evita duplicar puntos
+ *   por error, por ejemplo un doble clic).
  */
 export async function settleMatch(
   matchId: number,
-  result: Pick1X2
-): Promise<{ match: Match; gradedPredictions: number; winners: number }> {
+  result: Pick1X2,
+  options: { force?: boolean } = {}
+): Promise<{ match: Match; gradedPredictions: number; winners: number; wasCorrection: boolean }> {
   const match = await queryOne<Match>("SELECT * FROM matches WHERE id = $1", [matchId]);
 
   if (!match) {
     throw new MatchEngineError(`El partido ${matchId} no existe`);
   }
 
-  if (match.status === "FINISHED") {
+  const wasCorrection = match.status === "FINISHED";
+
+  if (wasCorrection && !options.force) {
     throw new MatchEngineError(
-      `El partido ${matchId} ya fue calificado (resultado: ${match.result})`
+      `El partido ${matchId} ya fue calificado (resultado: ${match.result}). ` +
+      `Si te equivocaste, usá la opción de corregir resultado.`
     );
   }
 
@@ -35,13 +43,29 @@ export async function settleMatch(
   try {
     await client.query("BEGIN");
 
-    // 1) Registrar el resultado oficial y cerrar el partido
+    if (wasCorrection) {
+      // Revertir los puntos que ya se habían otorgado con el resultado anterior
+      const { rows: previousPredictions } = await client.query<Prediction>(
+        "SELECT * FROM predictions WHERE match_id = $1",
+        [matchId]
+      );
+      for (const p of previousPredictions) {
+        if (p.points_earned) {
+          await client.query("UPDATE users SET total_points = total_points - $1 WHERE id = $2", [
+            p.points_earned,
+            p.user_id,
+          ]);
+        }
+      }
+    }
+
+    // Registrar el (nuevo) resultado oficial y cerrar el partido
     await client.query(
       "UPDATE matches SET status = 'FINISHED', result = $1 WHERE id = $2",
       [result, matchId]
     );
 
-    // 2) Traer todos los pronósticos cargados para este partido
+    // Recalcular todos los pronósticos de este partido contra el resultado actual
     const { rows: predictions } = await client.query<Prediction>(
       "SELECT * FROM predictions WHERE match_id = $1",
       [matchId]
@@ -81,5 +105,6 @@ export async function settleMatch(
     match: updatedMatch!,
     gradedPredictions,
     winners,
+    wasCorrection,
   };
 }

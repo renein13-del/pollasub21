@@ -355,25 +355,26 @@ main {
    =========================================================== */
 .matches {
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
 }
 
 .match-card {
   background: var(--bg-elevated);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 14px;
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .match-card__teams {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 12px;
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 16px;
   text-align: center;
 }
 
@@ -395,17 +396,19 @@ main {
 .picks {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 6px;
+  max-width: 280px;
+  margin: 0 auto;
 }
 
 .pick-btn {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  padding: 12px 8px;
-  border-radius: 8px;
+  padding: 7px 4px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--bg);
   color: var(--ink-dim);
@@ -488,6 +491,68 @@ main {
 /* ===========================================================
    Footer
    =========================================================== */
+/* ===========================================================
+   Grupos de amigos / selector de liga
+   =========================================================== */
+.groups-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.groups-bar__tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.group-tab {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.group-tab.is-active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-ink);
+  font-weight: 700;
+}
+
+.join-group-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.join-group-form .field__input {
+  width: 120px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.join-group-form .btn {
+  padding: 8px 12px;
+}
+
+.matchday-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.matchday-filter .field__input {
+  width: 90px;
+}
+
 .footer {
   text-align: center;
   padding: 32px 20px 48px;

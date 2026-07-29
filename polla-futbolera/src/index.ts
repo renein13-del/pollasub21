@@ -6,6 +6,8 @@ import { authRouter } from "./routes/auth";
 import { matchesRouter } from "./routes/matches";
 import { predictionsRouter } from "./routes/predictions";
 import { leaderboardRouter } from "./routes/leaderboard";
+import { adminRouter } from "./routes/admin";
+import { groupsRouter } from "./routes/groups";
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -33,6 +35,8 @@ async function main() {
   app.use("/matches", matchesRouter);
   app.use("/predictions", predictionsRouter);
   app.use("/leaderboard", leaderboardRouter);
+  app.use("/admin", adminRouter);
+  app.use("/groups", groupsRouter);
 
   // Web estática (registro/login, partidos, pronósticos, tabla de posiciones, admin)
   app.use(express.static(path.join(__dirname, "..", "public")));

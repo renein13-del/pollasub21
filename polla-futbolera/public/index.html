@@ -76,11 +76,31 @@
     </div>
   </section>
 
+  <!-- ============ MIS GRUPOS ============ -->
+  <section id="gruposSection" hidden>
+    <div class="groups-bar">
+      <div class="groups-bar__tabs" id="groupsTabs"></div>
+      <form class="join-group-form" id="joinGroupForm" novalidate>
+        <input class="field__input" type="text" name="code" placeholder="Código de grupo" maxlength="10">
+        <button class="btn btn--ghost" type="submit">Unirme a un grupo</button>
+      </form>
+    </div>
+    <p class="field__error" id="joinGroupError" role="alert" hidden></p>
+  </section>
+
   <!-- ============ PARTIDOS ============ -->
   <section class="section" id="partidosSection" aria-labelledby="partidosTitulo">
     <div class="section__head">
       <h2 class="section__title" id="partidosTitulo">Marcador de la jornada</h2>
       <p class="section__hint" id="partidosHint">Creá o elegí tu carnet arriba para poder pronosticar.</p>
+    </div>
+    <div class="matchday-filter">
+      <label class="field field--compact" style="flex-direction:row; align-items:center; gap:8px;">
+        <span class="field__label" style="margin:0;">Fecha</span>
+        <select class="field__input" id="matchdayFilter">
+          <option value="">Todas</option>
+        </select>
+      </label>
     </div>
     <div class="matches" id="matchesList">
       <p class="empty-state">Cargando partidos…</p>

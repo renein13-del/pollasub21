@@ -63,3 +63,19 @@ CREATE TABLE IF NOT EXISTS predictions (
 
 CREATE INDEX IF NOT EXISTS idx_predictions_match ON predictions(match_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_user ON predictions(user_id);
+
+-- Grupos de amigos: cada uno tiene su propia tabla de posiciones,
+-- calculada sobre los mismos partidos y pronósticos globales.
+CREATE TABLE IF NOT EXISTS groups (
+    id          SERIAL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    code        TEXT NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+    group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (group_id, user_id)
+);

@@ -16,10 +16,7 @@ function hideConnBanner() {
 
 async function checkServerConnection() {
   if (location.protocol === "file:") {
-    showConnBanner(
-      "Esta página se abrió como archivo, no por el servidor. Corré <code>npm run dev</code> " +
-      "y entrá por <code>http://localhost:3000/admin.html</code>."
-    );
+    showConnBanner("Esta página se abrió como archivo, no por el servidor.");
     return;
   }
   try {
@@ -27,7 +24,7 @@ async function checkServerConnection() {
     if (!res.ok) throw new Error();
     hideConnBanner();
   } catch {
-    showConnBanner("No se pudo conectar con el servidor. Revisá que esté corriendo con <code>npm run dev</code>.");
+    showConnBanner("No se pudo conectar con el servidor.");
   }
 }
 
@@ -43,15 +40,12 @@ function escapeHtml(str) {
 function getAdminToken() {
   return localStorage.getItem(ADMIN_TOKEN_KEY);
 }
-
 function setAdminToken(token) {
   localStorage.setItem(ADMIN_TOKEN_KEY, token);
 }
-
 function clearAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_KEY);
 }
-
 function adminHeaders() {
   const token = getAdminToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -66,6 +60,8 @@ function showPanel() {
   adminPanel.hidden = false;
   adminSessionPill.hidden = false;
   loadMatches();
+  loadUsersForPoints();
+  loadGroups();
 }
 
 function showLogin() {
@@ -89,8 +85,7 @@ adminLoginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   adminLoginError.hidden = true;
 
-  const formData = new FormData(adminLoginForm);
-  const password = formData.get("password").toString();
+  const password = new FormData(adminLoginForm).get("password").toString();
 
   try {
     const res = await fetch(`${API}/auth/admin/login`, {
@@ -118,7 +113,69 @@ adminLoginForm.addEventListener("submit", async (e) => {
 });
 
 /* ============================================================
-   Crear partido
+   Carga masiva de partidos
+   ============================================================ */
+const bulkForm = document.getElementById("bulkForm");
+const bulkError = document.getElementById("bulkError");
+const bulkSuccess = document.getElementById("bulkSuccess");
+
+function parseBulkText(text) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [local_team, away_team, matchday] = line.split(";").map((s) => s?.trim());
+      const parsed = { local_team, away_team };
+      if (matchday) parsed.matchday = Number(matchday);
+      return parsed;
+    });
+}
+
+bulkForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  bulkError.hidden = true;
+  bulkSuccess.hidden = true;
+
+  const text = new FormData(bulkForm).get("bulk").toString();
+  const matches = parseBulkText(text);
+
+  const invalid = matches.some((m) => !m.local_team || !m.away_team);
+  if (matches.length === 0 || invalid) {
+    bulkError.textContent = "Revisá el formato: cada línea debe ser Local;Visitante;Fecha (fecha opcional).";
+    bulkError.hidden = false;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/matches/bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ matches }),
+    });
+
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+
+    if (!res.ok) {
+      bulkError.textContent = data.error || "No se pudieron crear los partidos.";
+      bulkError.hidden = false;
+      return;
+    }
+
+    bulkSuccess.textContent = data.message;
+    bulkSuccess.hidden = false;
+    bulkForm.reset();
+    loadMatches();
+  } catch {
+    bulkError.textContent = "No se pudo conectar con el servidor.";
+    bulkError.hidden = false;
+    checkServerConnection();
+  }
+});
+
+/* ============================================================
+   Crear un partido suelto
    ============================================================ */
 const crearForm = document.getElementById("crearForm");
 const crearError = document.getElementById("crearError");
@@ -182,12 +239,12 @@ async function loadMatches() {
     scheduledList.innerHTML = scheduled.length
       ? ""
       : `<p class="empty-state">No hay partidos programados. Creá uno arriba.</p>`;
-    scheduled.forEach((m) => scheduledList.appendChild(renderScheduledCard(m)));
+    scheduled.forEach((m) => scheduledList.appendChild(renderMatchResultCard(m, false)));
 
     finishedList.innerHTML = finished.length
       ? ""
       : `<p class="empty-state">Todavía no hay partidos finalizados.</p>`;
-    finished.forEach((m) => finishedList.appendChild(renderFinishedCard(m)));
+    finished.forEach((m) => finishedList.appendChild(renderMatchResultCard(m, true)));
   } catch {
     scheduledList.innerHTML = `<p class="empty-state">No se pudieron cargar los partidos.</p>`;
     finishedList.innerHTML = "";
@@ -195,19 +252,23 @@ async function loadMatches() {
   }
 }
 
-function renderScheduledCard(match) {
+// isFinished=true -> tarjeta de "corregir resultado" (colapsada por defecto)
+function renderMatchResultCard(match, isFinished) {
   const card = document.createElement("div");
   card.className = "match-card";
 
+  const metaLine = match.matchday ? `Fecha ${match.matchday}` : "Sin fecha asignada";
+
   card.innerHTML = `
-    <p class="match-card__meta">${match.matchday ? `Fecha ${match.matchday}` : "Sin fecha asignada"}</p>
+    <p class="match-card__meta">${metaLine}</p>
     <div class="match-card__teams">
       <span>${escapeHtml(match.local_team)}</span>
       <span class="match-card__vs">vs</span>
       <span>${escapeHtml(match.away_team)}</span>
     </div>
-    <p class="section__hint" style="text-align:center;">Tocá el resultado final para calificar los pronósticos</p>
-    <div class="picks">
+    ${isFinished ? `<p class="match-card__result">Resultado actual: ${match.result}</p>` : ""}
+    ${isFinished ? `<button class="btn btn--ghost btn--corregir" type="button" style="justify-self:center;">Corregir resultado</button>` : ""}
+    <div class="picks" ${isFinished ? "hidden" : ""}>
       <button class="pick-btn" data-result="LOCAL" type="button">Ganó Local</button>
       <button class="pick-btn" data-result="EMPATE" type="button">Empate</button>
       <button class="pick-btn" data-result="VISITA" type="button">Ganó Visita</button>
@@ -215,14 +276,23 @@ function renderScheduledCard(match) {
     <p class="field__error" hidden></p>
   `;
 
+  const picksDiv = card.querySelector(".picks");
   const buttons = card.querySelectorAll(".pick-btn");
   const errorEl = card.querySelector(".field__error");
+  const corregirBtn = card.querySelector(".btn--corregir");
+
+  if (corregirBtn) {
+    corregirBtn.addEventListener("click", () => {
+      picksDiv.hidden = !picksDiv.hidden;
+    });
+  }
 
   buttons.forEach((btn) => {
     btn.addEventListener("click", async () => {
+      const accionTexto = isFinished ? "corregir el resultado a" : "confirmar el resultado";
       const confirmed = confirm(
-        `¿Confirmás el resultado "${btn.textContent}" para ${match.local_team} vs ${match.away_team}? ` +
-        `Esto califica todos los pronósticos y no se puede deshacer.`
+        `¿Confirmás ${accionTexto} "${btn.textContent}" para ${match.local_team} vs ${match.away_team}? ` +
+        `Esto recalcula los puntos de todos los que pronosticaron este partido.`
       );
       if (!confirmed) return;
 
@@ -233,7 +303,7 @@ function renderScheduledCard(match) {
         const res = await fetch(`${API}/matches/${match.id}/result`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...adminHeaders() },
-          body: JSON.stringify({ result: btn.dataset.result }),
+          body: JSON.stringify({ result: btn.dataset.result, force: isFinished }),
         });
 
         if (res.status === 401) return showLogin();
@@ -260,20 +330,148 @@ function renderScheduledCard(match) {
   return card;
 }
 
-function renderFinishedCard(match) {
-  const card = document.createElement("div");
-  card.className = "match-card";
-  card.innerHTML = `
-    <p class="match-card__meta">${match.matchday ? `Fecha ${match.matchday}` : ""}</p>
-    <div class="match-card__teams">
-      <span>${escapeHtml(match.local_team)}</span>
-      <span class="match-card__vs">vs</span>
-      <span>${escapeHtml(match.away_team)}</span>
-    </div>
-    <p class="match-card__result">Resultado: ${match.result}</p>
-  `;
-  return card;
+/* ============================================================
+   Cargar puntos que los usuarios ya tenían
+   ============================================================ */
+const pointsForm = document.getElementById("pointsForm");
+const pointsError = document.getElementById("pointsError");
+const pointsSuccess = document.getElementById("pointsSuccess");
+const pointsUserSelect = document.getElementById("pointsUserSelect");
+
+async function loadUsersForPoints() {
+  try {
+    const res = await fetch(`${API}/admin/users`, { headers: adminHeaders() });
+    if (res.status === 401) return showLogin();
+    const users = await res.json();
+
+    pointsUserSelect.innerHTML = users.length
+      ? users
+          .map(
+            (u) =>
+              `<option value="${u.id}">${escapeHtml(u.nickname)} — ${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)} (${u.total_points} pts)</option>`
+          )
+          .join("")
+      : `<option value="">Todavía no hay usuarios registrados</option>`;
+  } catch {
+    pointsUserSelect.innerHTML = `<option value="">No se pudo cargar</option>`;
+  }
 }
+
+pointsForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  pointsError.hidden = true;
+  pointsSuccess.hidden = true;
+
+  const formData = new FormData(pointsForm);
+  const userId = formData.get("user_id");
+  const points = Number(formData.get("points"));
+
+  if (!userId || Number.isNaN(points)) {
+    pointsError.textContent = "Elegí un usuario e ingresá un número de puntos válido.";
+    pointsError.hidden = false;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/admin/users/${userId}/points`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ points }),
+    });
+
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+
+    if (!res.ok) {
+      pointsError.textContent = data.error || "No se pudieron aplicar los puntos.";
+      pointsError.hidden = false;
+      return;
+    }
+
+    pointsSuccess.textContent = `Listo: ${data.nickname} ahora tiene ${data.total_points} puntos.`;
+    pointsSuccess.hidden = false;
+    pointsForm.reset();
+    loadUsersForPoints();
+  } catch {
+    pointsError.textContent = "No se pudo conectar con el servidor.";
+    pointsError.hidden = false;
+    checkServerConnection();
+  }
+});
+
+/* ============================================================
+   Grupos de amigos
+   ============================================================ */
+const createGroupForm = document.getElementById("createGroupForm");
+const groupError = document.getElementById("groupError");
+const groupsList = document.getElementById("groupsList");
+
+async function loadGroups() {
+  try {
+    const res = await fetch(`${API}/admin/groups`, { headers: adminHeaders() });
+    if (res.status === 401) return showLogin();
+    const groups = await res.json();
+
+    if (!groups.length) {
+      groupsList.innerHTML = `<p class="empty-state">Todavía no creaste ningún grupo.</p>`;
+      return;
+    }
+
+    const head = `
+      <div class="board__row board__row--head">
+        <span>Grupo</span>
+        <span>Código</span>
+        <span>Miembros</span>
+      </div>`;
+
+    const body = groups
+      .map(
+        (g) => `
+        <div class="board__row" style="grid-template-columns: 1fr auto auto;">
+          <span>${escapeHtml(g.name)}</span>
+          <span class="board__pts" style="font-size:14px;">${escapeHtml(g.code)}</span>
+          <span class="board__pts" style="font-size:14px;">${g.miembros}</span>
+        </div>`
+      )
+      .join("");
+
+    groupsList.innerHTML = head + body;
+  } catch {
+    groupsList.innerHTML = `<p class="empty-state">No se pudieron cargar los grupos.</p>`;
+  }
+}
+
+createGroupForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  groupError.hidden = true;
+
+  const name = new FormData(createGroupForm).get("name").toString().trim();
+  if (!name) return;
+
+  try {
+    const res = await fetch(`${API}/admin/groups`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ name }),
+    });
+
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+
+    if (!res.ok) {
+      groupError.textContent = data.error || "No se pudo crear el grupo.";
+      groupError.hidden = false;
+      return;
+    }
+
+    createGroupForm.reset();
+    loadGroups();
+  } catch {
+    groupError.textContent = "No se pudo conectar con el servidor.";
+    groupError.hidden = false;
+    checkServerConnection();
+  }
+});
 
 /* ============================================================
    Init

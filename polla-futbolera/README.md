@@ -50,11 +50,18 @@ Entrando al dominio (o a `http://localhost:3000` en local):
 
 Entrando a `/admin.html` (hay un link discreto al pie de la web principal) se pide la **contraseña de administrador** (variable `ADMIN_PASSWORD`). Desde ahí:
 
-1. **Crear partidos** — equipo local, visitante y fecha/jornada opcional.
-2. **Cargar el resultado final** — dispara el Match Engine y califica todos los pronósticos.
-3. Ver el historial de partidos finalizados.
+1. **Cargar partidos de todas las fechas de una vez** — una caja de texto donde pegás una línea por partido con el formato `Local;Visitante;Fecha` (la fecha es opcional). Sirve para cargar, por ejemplo, las fechas 1 a 22 en un solo paso.
+2. **Agregar un partido suelto** — para cuando querés cargar uno solo.
+3. **Cargar el resultado final** de cada partido programado — dispara el Match Engine y califica todos los pronósticos.
+4. **Corregir un resultado ya cargado** — en "Ya finalizados", tocando "Corregir resultado" volvés a elegir Local/Empate/Visita. El sistema primero revierte los puntos que se habían otorgado con el resultado viejo y recién ahí aplica el nuevo, así nadie queda con puntos de más.
+5. **Cargar puntos que los usuarios ya tenían** — buscás al usuario (ya registrado) y le sumás (o restás, con un número negativo) puntos manuales. Útil para arrancar el sistema a mitad de torneo sin perder lo que ya habían acumulado.
+6. **Grupos de amigos** — creás un grupo (le ponés nombre) y el sistema genera un código de invitación. Compartís ese código con tus amigos; cada uno lo carga en la web para unirse. Cada grupo tiene su propia tabla de posiciones, calculada sobre los mismos partidos y pronósticos.
 
 Es una sola contraseña compartida (no un usuario más), pensada para quien organiza la polla.
+
+## Grupos de amigos (mini-ligas)
+
+Un usuario puede pertenecer a varios grupos a la vez. En la web, una vez logueado, aparece una barra con "Tabla general" y una pestaña por cada grupo al que pertenece, más un campo para unirse a uno nuevo con el código que le compartió el administrador. Los puntos son los mismos en todos lados (son los mismos partidos) — lo que cambia es contra quién te comparás en la tabla.
 
 ---
 
@@ -133,8 +140,20 @@ Desde Render podés abrir una "Shell" del servicio (pestaña **Shell** en el das
 ### Partidos
 - `GET /matches` (público, filtro opcional `?status=SCHEDULED`) / `GET /matches/:id`
 - `POST /matches` — requiere admin
+- `POST /matches/bulk` — requiere admin: `{ "matches": [{ "local_team", "away_team", "matchday" }, ...] }`
 - `PUT /matches/:id` — requiere admin, mientras no esté finalizado
-- `POST /matches/:id/result` — requiere admin, **dispara el Match Engine**: `{ "result": "LOCAL" }`
+- `POST /matches/:id/result` — requiere admin, **dispara el Match Engine**: `{ "result": "LOCAL", "force": false }` (`force: true` para corregir un resultado ya cargado)
+
+### Administración (requieren admin)
+- `GET /admin/users` — lista de usuarios para buscar a quién ajustarle puntos
+- `POST /admin/users/:id/points` — `{ "points": 12 }` (puede ser negativo) suma puntos manuales
+- `POST /admin/groups` — `{ "name": "Los del barrio" }` → crea un grupo y devuelve su código
+- `GET /admin/groups` — lista de grupos con cantidad de miembros
+
+### Grupos (requieren `Authorization: Bearer <token>` de usuario)
+- `GET /groups/mine` — grupos a los que pertenece el usuario logueado
+- `POST /groups/join` — `{ "code": "ABC123" }`
+- `GET /groups/:id/leaderboard` — tabla de posiciones del grupo (solo si sos miembro)
 
 ### Pronósticos (requieren `Authorization: Bearer <token>` de usuario)
 - `POST /predictions` — `{ match_id, user_pick }`
@@ -142,7 +161,7 @@ Desde Render podés abrir una "Shell" del servicio (pestaña **Shell** en el das
 - `GET /predictions/match/:matchId`
 
 ### Tabla de posiciones
-- `GET /leaderboard` (público)
+- `GET /leaderboard` (público, tabla general con todos los usuarios)
 
 ## Motor de Calificación (Match Engine)
 

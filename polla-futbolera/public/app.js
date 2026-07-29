@@ -18,8 +18,7 @@ async function checkServerConnection() {
   if (location.protocol === "file:") {
     showConnBanner(
       "Esta página se abrió directamente como archivo y no a través del servidor. " +
-      "Corré <code>npm run dev</code> en la carpeta del proyecto y entrá por " +
-      "<code>http://localhost:3000</code>."
+      "Entrá por la dirección de tu web (ej: <code>http://localhost:3000</code>)."
     );
     return false;
   }
@@ -29,11 +28,7 @@ async function checkServerConnection() {
     hideConnBanner();
     return true;
   } catch {
-    showConnBanner(
-      "No se pudo conectar con el servidor. Revisá que esté corriendo " +
-      "(<code>npm run dev</code>) y que estés entrando por la misma dirección " +
-      "que muestra la terminal (ej: <code>http://localhost:3000</code>)."
-    );
+    showConnBanner("No se pudo conectar con el servidor. Probá recargar la página en unos minutos.");
     return false;
   }
 }
@@ -59,6 +54,7 @@ function setSession(token, user) {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ token, user }));
   renderSession();
   loadMatches();
+  loadGroups();
 }
 
 async function clearSession() {
@@ -76,6 +72,7 @@ async function clearSession() {
   }
   renderSession();
   loadMatches();
+  renderGroupsUI([]);
 }
 
 function authHeaders() {
@@ -87,6 +84,7 @@ function renderSession() {
   const pill = document.getElementById("sessionPill");
   const hint = document.getElementById("partidosHint");
   const registroSection = document.getElementById("registroSection");
+  const gruposSection = document.getElementById("gruposSection");
   const session = getSession();
 
   if (session) {
@@ -99,11 +97,13 @@ function renderSession() {
     pill.appendChild(logout);
     hint.textContent = "Elegí LOCAL, EMPATE o VISITA en cada partido.";
     registroSection.hidden = true;
+    gruposSection.hidden = false;
   } else {
     pill.classList.remove("is-active");
     pill.innerHTML = `<span class="topbar__session-text">Sin carnet todavía</span>`;
     hint.textContent = "Creá tu carnet o iniciá sesión arriba para poder pronosticar.";
     registroSection.hidden = false;
+    gruposSection.hidden = true;
   }
 }
 
@@ -203,9 +203,96 @@ loginForm.addEventListener("submit", async (e) => {
 });
 
 /* ============================================================
+   Grupos de amigos (mini-ligas)
+   ============================================================ */
+let activeGroupId = ""; // "" = tabla general
+
+async function loadGroups() {
+  const session = getSession();
+  if (!session) return renderGroupsUI([]);
+
+  try {
+    const res = await fetch(`${API}/groups/mine`, { headers: authHeaders() });
+    if (!res.ok) return renderGroupsUI([]);
+    const groups = await res.json();
+    renderGroupsUI(groups);
+  } catch {
+    renderGroupsUI([]);
+  }
+}
+
+function renderGroupsUI(groups) {
+  const tabs = document.getElementById("groupsTabs");
+  tabs.innerHTML = "";
+
+  const generalTab = document.createElement("button");
+  generalTab.className = "group-tab" + (activeGroupId === "" ? " is-active" : "");
+  generalTab.textContent = "Tabla general";
+  generalTab.type = "button";
+  generalTab.addEventListener("click", () => selectGroup("", "Tabla general", tabs));
+  tabs.appendChild(generalTab);
+
+  groups.forEach((g) => {
+    const tab = document.createElement("button");
+    tab.className = "group-tab" + (String(activeGroupId) === String(g.id) ? " is-active" : "");
+    tab.textContent = g.name;
+    tab.type = "button";
+    tab.addEventListener("click", () => selectGroup(g.id, g.name, tabs));
+    tabs.appendChild(tab);
+  });
+}
+
+function selectGroup(id, name, tabsContainer) {
+  activeGroupId = id;
+  tabsContainer.querySelectorAll(".group-tab").forEach((t) => t.classList.remove("is-active"));
+  const clicked = [...tabsContainer.querySelectorAll(".group-tab")].find((t) => t.textContent === name);
+  if (clicked) clicked.classList.add("is-active");
+  document.getElementById("leaderboardTitulo").textContent =
+    id === "" ? "Tabla de posiciones" : `Tabla de posiciones · ${name}`;
+  loadLeaderboard();
+}
+
+const joinGroupForm = document.getElementById("joinGroupForm");
+const joinGroupError = document.getElementById("joinGroupError");
+
+joinGroupForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  joinGroupError.hidden = true;
+
+  const code = new FormData(joinGroupForm).get("code").toString().trim();
+  if (!code) return;
+
+  try {
+    const res = await fetch(`${API}/groups/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      joinGroupError.textContent = data.error || "No se pudo unir al grupo.";
+      joinGroupError.hidden = false;
+      return;
+    }
+
+    joinGroupForm.reset();
+    loadGroups();
+  } catch {
+    joinGroupError.textContent = "No se pudo conectar con el servidor.";
+    joinGroupError.hidden = false;
+  }
+});
+
+/* ============================================================
    Partidos y pronósticos
    ============================================================ */
 const matchesList = document.getElementById("matchesList");
+const matchdayFilter = document.getElementById("matchdayFilter");
+let allMatches = [];
+let predictionsByMatch = {};
+
+matchdayFilter.addEventListener("change", renderMatches);
 
 async function loadMatches() {
   matchesList.innerHTML = `<p class="empty-state">Cargando partidos…</p>`;
@@ -216,12 +303,16 @@ async function loadMatches() {
     hideConnBanner();
 
     if (!Array.isArray(matches) || matches.length === 0) {
+      allMatches = [];
       matchesList.innerHTML = `<p class="empty-state">Todavía no hay partidos cargados.</p>`;
       return;
     }
 
+    allMatches = matches;
+    populateMatchdayFilter(matches);
+
     const session = getSession();
-    let predictionsByMatch = {};
+    predictionsByMatch = {};
 
     if (session) {
       const predRes = await fetch(`${API}/predictions/mine`, { headers: authHeaders() });
@@ -233,14 +324,38 @@ async function loadMatches() {
       }
     }
 
-    matchesList.innerHTML = "";
-    matches.forEach((match) => {
-      matchesList.appendChild(renderMatchCard(match, predictionsByMatch[match.id], session));
-    });
+    renderMatches();
   } catch {
     matchesList.innerHTML = `<p class="empty-state">No se pudieron cargar los partidos.</p>`;
     checkServerConnection();
   }
+}
+
+function populateMatchdayFilter(matches) {
+  const matchdays = [...new Set(matches.map((m) => m.matchday).filter((d) => d != null))].sort(
+    (a, b) => a - b
+  );
+  const current = matchdayFilter.value;
+  matchdayFilter.innerHTML = `<option value="">Todas</option>` +
+    matchdays.map((d) => `<option value="${d}">Fecha ${d}</option>`).join("");
+  matchdayFilter.value = current;
+}
+
+function renderMatches() {
+  const session = getSession();
+  const selected = matchdayFilter.value;
+  const filtered = selected
+    ? allMatches.filter((m) => String(m.matchday) === String(selected))
+    : allMatches;
+
+  matchesList.innerHTML = "";
+  if (filtered.length === 0) {
+    matchesList.innerHTML = `<p class="empty-state">No hay partidos para esa fecha.</p>`;
+    return;
+  }
+  filtered.forEach((match) => {
+    matchesList.appendChild(renderMatchCard(match, predictionsByMatch[match.id], session));
+  });
 }
 
 function renderMatchCard(match, currentPick, session) {
@@ -257,9 +372,9 @@ function renderMatchCard(match, currentPick, session) {
       <span>${escapeHtml(match.away_team)}</span>
     </div>
     <div class="picks">
-      <button class="pick-btn" data-pick="LOCAL" type="button">Local</button>
-      <button class="pick-btn" data-pick="EMPATE" type="button">Empate</button>
-      <button class="pick-btn" data-pick="VISITA" type="button">Visita</button>
+      <button class="pick-btn" data-pick="LOCAL" type="button">L</button>
+      <button class="pick-btn" data-pick="EMPATE" type="button">E</button>
+      <button class="pick-btn" data-pick="VISITA" type="button">V</button>
     </div>
     ${isFinished ? `<p class="match-card__result">Resultado: ${match.result}</p>` : ""}
   `;
@@ -292,6 +407,7 @@ async function submitPrediction(matchId, pick, buttons, clickedBtn) {
     });
 
     if (res.ok) {
+      predictionsByMatch[matchId] = pick;
       buttons.forEach((b) => b.classList.remove("is-selected"));
       clickedBtn.classList.add("is-selected");
     } else if (res.status === 401) {
@@ -303,17 +419,19 @@ async function submitPrediction(matchId, pick, buttons, clickedBtn) {
 }
 
 /* ============================================================
-   Tabla de posiciones
+   Tabla de posiciones (general o por grupo)
    ============================================================ */
 const leaderboardTable = document.getElementById("leaderboardTable");
 
 async function loadLeaderboard() {
+  const url = activeGroupId ? `${API}/groups/${activeGroupId}/leaderboard` : `${API}/leaderboard`;
+
   try {
-    const res = await fetch(`${API}/leaderboard`);
+    const res = await fetch(url, activeGroupId ? { headers: authHeaders() } : {});
     const rows = await res.json();
 
-    if (!Array.isArray(rows) || rows.length === 0) {
-      leaderboardTable.innerHTML = `<p class="empty-state">Todavía no hay usuarios en la tabla.</p>`;
+    if (!res.ok || !Array.isArray(rows) || rows.length === 0) {
+      leaderboardTable.innerHTML = `<p class="empty-state">Todavía no hay usuarios en esta tabla.</p>`;
       return;
     }
 
@@ -352,3 +470,4 @@ checkServerConnection();
 renderSession();
 loadMatches();
 loadLeaderboard();
+loadGroups();

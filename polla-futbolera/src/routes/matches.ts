@@ -18,9 +18,13 @@ const updateMatchSchema = createMatchSchema.partial();
 
 const resultSchema = z.object({
   result: z.enum(["LOCAL", "EMPATE", "VISITA"]),
+  // force=true se usa para CORREGIR un resultado ya cargado (revierte los
+  // puntos viejos antes de aplicar los nuevos). Sin esto, un partido ya
+  // finalizado no se puede volver a calificar (evita duplicar puntos).
+  force: z.boolean().optional(),
 });
 
-// POST /matches -> crear partido (ej: Olimpia vs Cerro Porteño). Requiere admin.
+// POST /matches -> crear un partido. Requiere admin.
 matchesRouter.post("/", requireAdmin, async (req, res) => {
   const parsed = createMatchSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -38,13 +42,38 @@ matchesRouter.post("/", requireAdmin, async (req, res) => {
   res.status(201).json(match);
 });
 
+// POST /matches/bulk -> crear varios partidos de una sola vez. Requiere admin.
+// Body: { matches: [{ local_team, away_team, matchday? }, ...] }
+const bulkMatchSchema = z.object({
+  matches: z.array(createMatchSchema).min(1).max(200),
+});
+
+matchesRouter.post("/bulk", requireAdmin, async (req, res) => {
+  const parsed = bulkMatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const created = [];
+  for (const m of parsed.data.matches) {
+    const match = await queryOne(
+      `INSERT INTO matches (local_team, away_team, matchday, kickoff_at)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [m.local_team, m.away_team, m.matchday ?? null, m.kickoff_at ?? null]
+    );
+    created.push(match);
+  }
+
+  res.status(201).json({ message: `${created.length} partidos creados`, matches: created });
+});
+
 // GET /matches -> listar partidos (?status=SCHEDULED|FINISHED opcional)
 matchesRouter.get("/", async (req, res) => {
   const { status } = req.query;
   const matches =
     status === "SCHEDULED" || status === "FINISHED"
-      ? await query("SELECT * FROM matches WHERE status = $1 ORDER BY id", [status])
-      : await query("SELECT * FROM matches ORDER BY id");
+      ? await query("SELECT * FROM matches WHERE status = $1 ORDER BY matchday, id", [status])
+      : await query("SELECT * FROM matches ORDER BY matchday, id");
   res.json(matches);
 });
 
@@ -78,7 +107,8 @@ matchesRouter.put("/:id", requireAdmin, async (req, res) => {
   res.json(result);
 });
 
-// POST /matches/:id/result -> registrar resultado oficial y disparar el Match Engine. Requiere admin.
+// POST /matches/:id/result -> registrar (o corregir, con force:true) el resultado oficial.
+// Requiere admin. Dispara el Match Engine.
 matchesRouter.post("/:id/result", requireAdmin, async (req, res) => {
   const parsed = resultSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -86,8 +116,13 @@ matchesRouter.post("/:id/result", requireAdmin, async (req, res) => {
   }
 
   try {
-    const outcome = await settleMatch(Number(req.params.id), parsed.data.result);
-    res.json({ message: "Partido calificado correctamente", ...outcome });
+    const outcome = await settleMatch(Number(req.params.id), parsed.data.result, {
+      force: parsed.data.force,
+    });
+    res.json({
+      message: outcome.wasCorrection ? "Resultado corregido correctamente" : "Partido calificado correctamente",
+      ...outcome,
+    });
   } catch (err) {
     if (err instanceof MatchEngineError) {
       return res.status(409).json({ error: err.message });
