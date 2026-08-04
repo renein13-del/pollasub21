@@ -117,3 +117,47 @@ predictionsRouter.get("/match/:matchId", requireAuth, async (req, res) => {
   ]);
   res.json(predictions);
 });
+
+// GET /predictions/matchday/:matchday -> comparar los pronósticos de todos para una fecha.
+// Se habilita recién cuando "arranca la fecha": venció el horario límite de esa
+// fecha, o al menos uno de sus partidos ya está en curso/finalizado. Antes de eso,
+// nadie puede ver lo que votaron los demás (para no influenciar el propio voto).
+predictionsRouter.get("/matchday/:matchday", requireAuth, async (req, res) => {
+  const matchday = Number(req.params.matchday);
+  if (!Number.isInteger(matchday)) {
+    return res.status(400).json({ error: "Fecha inválida" });
+  }
+
+  const matches = await query<{ id: number; status: string }>(
+    "SELECT id, status FROM matches WHERE matchday = $1",
+    [matchday]
+  );
+  if (!matches.length) {
+    return res.status(404).json({ error: "No hay partidos cargados en esa fecha" });
+  }
+
+  const deadline = await queryOne<{ vote_deadline: string }>(
+    "SELECT vote_deadline FROM matchday_deadlines WHERE matchday = $1",
+    [matchday]
+  );
+  const deadlinePassed = deadline ? new Date() >= new Date(deadline.vote_deadline) : false;
+  const anyStartedOrFinished = matches.some((m) => m.status === "FINISHED");
+
+  if (!deadlinePassed && !anyStartedOrFinished) {
+    return res.status(403).json({
+      error: "La comparación se habilita recién cuando arranca la fecha (o vence el horario límite de votación).",
+    });
+  }
+
+  const rows = await query(
+    `SELECT p.match_id, p.user_pick, u.nickname
+     FROM predictions p
+     JOIN users u ON u.id = p.user_id
+     JOIN matches m ON m.id = p.match_id
+     WHERE m.matchday = $1
+     ORDER BY u.nickname`,
+    [matchday]
+  );
+
+  res.json(rows);
+});

@@ -529,7 +529,9 @@ async function loadVotesMatrix() {
             const pick = pickByUserAndMatch[u.id]?.[m.id];
             if (!pick) return `<td class="pick-empty">—</td>`;
             const isHit = m.status === "FINISHED" && m.result === pick;
-            return `<td class="${pickClass[pick]}${isHit ? " pick-hit" : ""}">${pickShort[pick]}</td>`;
+            const isMiss = m.status === "FINISHED" && m.result !== pick;
+            const cellClass = isHit ? "pick-hit" : isMiss ? "pick-miss" : pickClass[pick];
+            return `<td class="${cellClass}">${pickShort[pick]}</td>`;
           })
           .join("");
         const puntosFecha = pointsByUser[u.id] || 0;

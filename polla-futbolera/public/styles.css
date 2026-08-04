@@ -12,6 +12,10 @@
   --gold-ink: #1A1400;
   --red: #E4572E;
   --silver: #C9CBCF;
+  --hit-bg: rgba(69, 178, 107, 0.16);
+  --hit-ink: #7FCC9A;
+  --miss-bg: rgba(228, 87, 46, 0.14);
+  --miss-ink: #E4886F;
 
   --font-display: "Anton", sans-serif;
   --font-body: "Work Sans", sans-serif;
@@ -417,7 +421,14 @@ main {
 .pick-btn.is-selected[data-pick="EMPATE"] { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
 .pick-btn.is-selected[data-pick="VISITA"] { background: var(--red); border-color: var(--red); color: #2A0900; }
 
+/* Una vez finalizado el partido, el acierto/error pisa el color del pick elegido */
+.pick-btn.is-selected.is-hit { background: var(--hit-bg); border-color: var(--hit-ink); color: var(--hit-ink); }
+.pick-btn.is-selected.is-miss { background: var(--miss-bg); border-color: var(--miss-ink); color: var(--miss-ink); }
+
 .pick-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.match-card.is-hit { background: var(--hit-bg); }
+.match-card.is-miss { background: var(--miss-bg); }
 
 .match-card__result {
   text-align: center;
@@ -656,7 +667,22 @@ main {
 .votes-matrix td.pick-empate { color: var(--gold); }
 .votes-matrix td.pick-visita { color: var(--red); }
 .votes-matrix td.pick-empty { color: var(--ink-dim); }
-.votes-matrix td.pick-hit { font-weight: 700; text-decoration: underline; }
+.votes-matrix td.pick-hit { background: var(--hit-bg); color: var(--hit-ink); font-weight: 700; }
+.votes-matrix td.pick-miss { background: var(--miss-bg); color: var(--miss-ink); }
+
+/* ===========================================================
+   Comparación de votos (web de usuarios)
+   =========================================================== */
+.compare-block {
+  margin-top: 18px;
+}
+
+.compare-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-top: 14px;
+}
 
 .votes-matrix td.votes-matrix__points,
 .votes-matrix th:nth-last-child(-n+2) {

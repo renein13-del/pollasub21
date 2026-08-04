@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.5.0 — Colores de acierto/error + vista de comparación por fecha
+
+### Verde/rojo tenues para acierto y error
+- **Web de usuarios**: una vez que un partido termina, la tarjeta y el botón
+  de tu pronóstico se tiñen de verde (acierto) o rojo (error) — colores
+  sutiles, solo para diferenciar de un vistazo.
+- **Matriz de votos (admin)**: las celdas de partidos finalizados ahora usan
+  los mismos tonos — verde si esa persona acertó, rojo si no.
+
+### Vista de comparación (solo una vez que arranca la fecha)
+Nueva sección debajo de los partidos en la web: botón **"Ver comparación de
+la fecha"**, que muestra una tabla con lo que votó cada persona en esa
+fecha — igual que la matriz del admin, pero para los propios usuarios.
+
+Se **bloquea hasta que arranca la fecha**: recién se puede ver cuando vence
+el horario límite de votación de esa fecha, o cuando al menos un partido de
+esa fecha ya terminó. Antes de eso, nadie puede espiar el voto de otro. El
+bloqueo es real (lo valida el servidor, `GET /predictions/matchday/:matchday`),
+no solo un botón oculto en la pantalla.
+
 ## v1.4.0 — Menú en el panel de admin + columnas de puntos en la matriz
 
 ### Menú de pestañas en el admin

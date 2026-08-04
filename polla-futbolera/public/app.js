@@ -412,12 +412,100 @@ function renderMatches() {
   matchesList.innerHTML = "";
   if (filtered.length === 0) {
     matchesList.innerHTML = `<p class="empty-state">No hay partidos para esa fecha.</p>`;
-    return;
+  } else {
+    filtered.forEach((match) => {
+      matchesList.appendChild(renderMatchCard(match, predictionsByMatch[match.id], session));
+    });
   }
-  filtered.forEach((match) => {
-    matchesList.appendChild(renderMatchCard(match, predictionsByMatch[match.id], session));
-  });
+
+  updateCompareBlock(selected, filtered, session);
 }
+
+/* ============================================================
+   Comparación de votos (solo una vez que arrancó la fecha)
+   ============================================================ */
+const compareBlock = document.getElementById("compareBlock");
+const compareToggle = document.getElementById("compareToggle");
+const compareWrap = document.getElementById("compareWrap");
+let compareMatchday = null;
+
+function updateCompareBlock(selectedMatchday, matchesOfDay, session) {
+  const deadlineIso = selectedMatchday ? deadlinesByMatchday[selectedMatchday] : null;
+  const deadlinePassed = deadlineIso ? new Date() >= new Date(deadlineIso) : false;
+  const anyFinished = matchesOfDay.some((m) => m.status === "FINISHED");
+  const unlocked = Boolean(selectedMatchday) && session && (deadlinePassed || anyFinished);
+
+  compareBlock.hidden = !unlocked;
+  if (!unlocked || compareMatchday !== selectedMatchday) {
+    compareWrap.hidden = true;
+    compareWrap.innerHTML = "";
+    compareToggle.textContent = "Ver comparación de la fecha";
+  }
+  compareMatchday = selectedMatchday;
+}
+
+compareToggle.addEventListener("click", async () => {
+  const opening = compareWrap.hidden;
+  compareWrap.hidden = !opening;
+  compareToggle.textContent = opening ? "Ocultar comparación" : "Ver comparación de la fecha";
+  if (!opening || compareWrap.dataset.loaded === compareMatchday) return;
+
+  compareWrap.innerHTML = `<p class="empty-state">Cargando…</p>`;
+
+  try {
+    const res = await fetch(`${API}/predictions/matchday/${compareMatchday}`, {
+      headers: authHeaders(),
+    });
+    const rows = await res.json();
+
+    if (!res.ok) {
+      compareWrap.innerHTML = `<p class="empty-state">${escapeHtml(rows.error || "Todavía no se puede ver.")}</p>`;
+      return;
+    }
+
+    const matchesOfDay = allMatches.filter((m) => String(m.matchday) === String(compareMatchday));
+    const nicknames = [...new Set(rows.map((r) => r.nickname))].sort();
+
+    const pickByUserAndMatch = {};
+    rows.forEach((r) => {
+      pickByUserAndMatch[r.nickname] = pickByUserAndMatch[r.nickname] || {};
+      pickByUserAndMatch[r.nickname][r.match_id] = r.user_pick;
+    });
+
+    const pickShort = { LOCAL: "L", EMPATE: "E", VISITA: "V" };
+
+    const headerCells = matchesOfDay
+      .map((m) => `<th>${escapeHtml(m.local_team)} vs ${escapeHtml(m.away_team)}</th>`)
+      .join("");
+
+    const bodyRows = nicknames
+      .map((nick) => {
+        const cells = matchesOfDay
+          .map((m) => {
+            const pick = pickByUserAndMatch[nick]?.[m.id];
+            if (!pick) return `<td class="pick-empty">—</td>`;
+            const isHit = m.status === "FINISHED" && m.result === pick;
+            const isMiss = m.status === "FINISHED" && m.result !== pick;
+            const cls = isHit ? "pick-hit" : isMiss ? "pick-miss" : "";
+            return `<td class="${cls}">${pickShort[pick]}</td>`;
+          })
+          .join("");
+        return `<tr><th>${escapeHtml(nick)}</th>${cells}</tr>`;
+      })
+      .join("");
+
+    compareWrap.innerHTML = `
+      <div class="compare-wrap">
+        <table class="votes-matrix">
+          <thead><tr><th>Usuario</th>${headerCells}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>`;
+    compareWrap.dataset.loaded = compareMatchday;
+  } catch {
+    compareWrap.innerHTML = `<p class="empty-state">No se pudo cargar la comparación.</p>`;
+  }
+});
 
 function renderMatchCard(match, currentPick, session) {
   const card = document.createElement("div");
@@ -457,8 +545,18 @@ function renderMatchCard(match, currentPick, session) {
   `;
 
   const buttons = card.querySelectorAll(".pick-btn");
+  const gotItRight = isFinished && currentPick && match.result === currentPick;
+  const gotItWrong = isFinished && currentPick && match.result !== currentPick;
+
+  if (gotItRight) card.classList.add("is-hit");
+  if (gotItWrong) card.classList.add("is-miss");
+
   buttons.forEach((btn) => {
-    if (btn.dataset.pick === currentPick) btn.classList.add("is-selected");
+    if (btn.dataset.pick === currentPick) {
+      btn.classList.add("is-selected");
+      if (gotItRight) btn.classList.add("is-hit");
+      if (gotItWrong) btn.classList.add("is-miss");
+    }
 
     if (isFinished || !session || votingClosed) {
       btn.disabled = true;
