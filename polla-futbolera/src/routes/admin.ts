@@ -541,7 +541,8 @@ adminRouter.get("/matchdays-list", async (_req, res) => {
 });
 
 // GET /admin/votes-matrix?matchday=X -> partidos de esa fecha, todos los usuarios,
-// y el pronóstico de cada uno (o nada) para cada partido.
+// y el pronóstico de cada uno (o nada) para cada partido. Incluye los puntos
+// ganados en esa fecha puntual y el total general, para las columnas extra.
 adminRouter.get("/votes-matrix", async (req, res) => {
   const { matchday } = req.query;
   if (!matchday) return res.status(400).json({ error: "Falta la fecha" });
@@ -551,10 +552,10 @@ adminRouter.get("/votes-matrix", async (req, res) => {
     [matchday]
   );
 
-  const users = await query("SELECT id, nickname FROM users ORDER BY nickname");
+  const users = await query("SELECT id, nickname, total_points FROM users ORDER BY nickname");
 
   const predictions = await query(
-    `SELECT p.user_id, p.match_id, p.user_pick
+    `SELECT p.user_id, p.match_id, p.user_pick, p.points_earned
      FROM predictions p
      JOIN matches m ON m.id = p.match_id
      WHERE m.matchday = $1`,

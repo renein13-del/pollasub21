@@ -543,6 +543,7 @@ main {
    =========================================================== */
 .segment-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 28px 0 8px;
   border-bottom: 1px solid var(--line);
@@ -656,6 +657,13 @@ main {
 .votes-matrix td.pick-visita { color: var(--red); }
 .votes-matrix td.pick-empty { color: var(--ink-dim); }
 .votes-matrix td.pick-hit { font-weight: 700; text-decoration: underline; }
+
+.votes-matrix td.votes-matrix__points,
+.votes-matrix th:nth-last-child(-n+2) {
+  background: var(--bg-elevated-2);
+  font-weight: 700;
+  color: var(--gold);
+}
 
 .footer {
   text-align: center;

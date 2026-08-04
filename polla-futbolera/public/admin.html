@@ -53,246 +53,290 @@
       <h1 class="hero__title">Administración</h1>
     </section>
 
-    <!-- ============ CARGA MASIVA DE PARTIDOS ============ -->
-    <section class="section" aria-labelledby="masivoTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="masivoTitulo">Cargar partidos (todas las fechas de una vez)</h2>
-        <p class="section__hint">Una línea por partido: Local ; Visitante ; Fecha</p>
-      </div>
-      <form id="bulkForm" class="ticket__form" style="max-width:560px;" novalidate>
-        <label class="field">
-          <span class="field__label">Partidos (uno por línea)</span>
-          <textarea class="field__input" name="bulk" rows="8" style="resize:vertical; font-family: var(--font-mono); font-size:13px;"
-            placeholder="Olimpia;Cerro Porteño;1&#10;Libertad;Guaraní;1&#10;Nacional;Sportivo Luqueño;1&#10;Olimpia;Libertad;2"></textarea>
+    <!-- ============ MENÚ DE SECCIONES DEL ADMIN ============ -->
+    <nav class="segment-nav" id="adminSegmentNav">
+      <button class="segment-btn is-active" type="button" data-admin-tab="partidos">Partidos</button>
+      <button class="segment-btn" type="button" data-admin-tab="votos">Votos</button>
+      <button class="segment-btn" type="button" data-admin-tab="puntos">Puntos</button>
+      <button class="segment-btn" type="button" data-admin-tab="especiales">Especiales</button>
+      <button class="segment-btn" type="button" data-admin-tab="grupos">Grupos</button>
+    </nav>
+
+    <!-- ============================================================
+         PESTAÑA: PARTIDOS
+         ============================================================ -->
+    <div class="admin-tab" id="adminTab-partidos">
+
+      <!-- ============ CARGA MASIVA DE PARTIDOS ============ -->
+      <section class="section" aria-labelledby="masivoTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="masivoTitulo">Cargar partidos (todas las fechas de una vez)</h2>
+          <p class="section__hint">Una línea por partido: Local ; Visitante ; Fecha</p>
+        </div>
+        <form id="bulkForm" class="ticket__form" style="max-width:560px;" novalidate>
+          <label class="field">
+            <span class="field__label">Partidos (uno por línea)</span>
+            <textarea class="field__input" name="bulk" rows="8" style="resize:vertical; font-family: var(--font-mono); font-size:13px;"
+              placeholder="Olimpia;Cerro Porteño;1&#10;Libertad;Guaraní;1&#10;Nacional;Sportivo Luqueño;1&#10;Olimpia;Libertad;2"></textarea>
+          </label>
+          <button class="btn btn--primary" type="submit">Crear todos los partidos</button>
+          <p class="field__error" id="bulkError" role="alert" hidden></p>
+          <p class="section__hint" id="bulkSuccess" hidden></p>
+        </form>
+      </section>
+
+      <!-- ============ CREAR UN PARTIDO SUELTO ============ -->
+      <section class="section" aria-labelledby="crearTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="crearTitulo">Agregar un partido suelto</h2>
+        </div>
+        <form id="crearForm" class="ticket__form" style="max-width:480px;" novalidate>
+          <label class="field">
+            <span class="field__label">Equipo local</span>
+            <input class="field__input" type="text" name="local_team" placeholder="Ej: Olimpia" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Equipo visitante</span>
+            <input class="field__input" type="text" name="away_team" placeholder="Ej: Cerro Porteño" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Fecha / jornada (opcional)</span>
+            <input class="field__input" type="number" name="matchday" placeholder="Ej: 1" min="1">
+          </label>
+          <button class="btn btn--ghost" type="submit">Crear partido</button>
+          <p class="field__error" id="crearError" role="alert" hidden></p>
+        </form>
+      </section>
+
+      <!-- ============ RESULTADOS EN TIEMPO REAL (API-FOOTBALL) ============ -->
+      <section class="section" aria-labelledby="liveScoresTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="liveScoresTitulo">Resultados en tiempo real</h2>
+          <p class="section__hint" id="liveScoresStatus">Revisando configuración…</p>
+        </div>
+        <button class="btn btn--ghost" id="syncNowBtn" type="button">Sincronizar ahora</button>
+        <p class="field__error" id="syncError" role="alert" hidden></p>
+        <p class="section__hint" id="syncResult" hidden></p>
+      </section>
+
+      <!-- ============ PARTIDOS PROGRAMADOS: cargar resultado ============ -->
+      <section class="section" aria-labelledby="programadosTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="programadosTitulo">Partidos programados</h2>
+          <p class="section__hint">Elegí el resultado final para calificar los pronósticos, o vinculá el partido con API-Football para que se cargue solo.</p>
+        </div>
+        <div class="matches" id="scheduledList">
+          <p class="empty-state">Cargando…</p>
+        </div>
+      </section>
+
+      <!-- ============ PARTIDOS FINALIZADOS: corregir si hace falta ============ -->
+      <section class="section" aria-labelledby="finalizadosTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="finalizadosTitulo">Ya finalizados</h2>
+          <p class="section__hint">Si cargaste mal un resultado, corregilo acá — reajusta los puntos solo.</p>
+        </div>
+        <div class="matches" id="finishedList">
+          <p class="empty-state">Cargando…</p>
+        </div>
+      </section>
+
+      <!-- ============ HORARIO LÍMITE PARA VOTAR ============ -->
+      <section class="section" aria-labelledby="deadlineTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="deadlineTitulo">Horario límite para votar</h2>
+          <p class="section__hint">Uno por fecha — ya con los 5 minutos de margen descontados (ej: si arranca 17:00, cargá 16:55).</p>
+        </div>
+        <form id="deadlineForm" class="ticket__form" style="max-width:420px; margin-bottom:24px;" novalidate>
+          <label class="field">
+            <span class="field__label">Fecha / jornada</span>
+            <input class="field__input" type="number" name="matchday" placeholder="Ej: 1" min="1" required>
+          </label>
+          <label class="field">
+            <span class="field__label">Horario máximo para votar</span>
+            <input class="field__input" type="datetime-local" name="vote_deadline" required>
+          </label>
+          <button class="btn btn--primary" type="submit">Guardar horario</button>
+          <p class="field__error" id="deadlineError" role="alert" hidden></p>
+        </form>
+        <div class="board" id="deadlinesList">
+          <p class="empty-state">Cargando horarios…</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ============================================================
+         PESTAÑA: VOTOS
+         ============================================================ -->
+    <div class="admin-tab" id="adminTab-votos" hidden>
+
+      <!-- ============ MATRIZ DE VOTOS POR FECHA ============ -->
+      <section class="section" aria-labelledby="matrizTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="matrizTitulo">Votos por fecha (de un vistazo)</h2>
+          <p class="section__hint">Filas: usuarios. Columnas: partidos de la fecha elegida, más puntos de esa fecha y puntos totales.</p>
+        </div>
+        <label class="field field--compact" style="max-width:220px; margin-bottom:14px;">
+          <span class="field__label">Fecha</span>
+          <select class="field__input" id="matrixMatchdaySelect">
+            <option value="">Elegí una fecha…</option>
+          </select>
         </label>
-        <button class="btn btn--primary" type="submit">Crear todos los partidos</button>
-        <p class="field__error" id="bulkError" role="alert" hidden></p>
-        <p class="section__hint" id="bulkSuccess" hidden></p>
-      </form>
-    </section>
+        <div id="votesMatrixWrap" class="votes-matrix-wrap">
+          <p class="empty-state">Elegí una fecha arriba para ver los votos.</p>
+        </div>
+      </section>
 
-    <!-- ============ CREAR UN PARTIDO SUELTO ============ -->
-    <section class="section" aria-labelledby="crearTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="crearTitulo">Agregar un partido suelto</h2>
-      </div>
-      <form id="crearForm" class="ticket__form" style="max-width:480px;" novalidate>
-        <label class="field">
-          <span class="field__label">Equipo local</span>
-          <input class="field__input" type="text" name="local_team" placeholder="Ej: Olimpia" required>
-        </label>
-        <label class="field">
-          <span class="field__label">Equipo visitante</span>
-          <input class="field__input" type="text" name="away_team" placeholder="Ej: Cerro Porteño" required>
-        </label>
-        <label class="field">
-          <span class="field__label">Fecha / jornada (opcional)</span>
-          <input class="field__input" type="number" name="matchday" placeholder="Ej: 1" min="1">
-        </label>
-        <button class="btn btn--ghost" type="submit">Crear partido</button>
-        <p class="field__error" id="crearError" role="alert" hidden></p>
-      </form>
-    </section>
-
-    <!-- ============ MATRIZ DE VOTOS POR FECHA ============ -->
-    <section class="section" aria-labelledby="matrizTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="matrizTitulo">Votos por fecha (de un vistazo)</h2>
-        <p class="section__hint">Filas: usuarios. Columnas: partidos de la fecha elegida.</p>
-      </div>
-      <label class="field field--compact" style="max-width:220px; margin-bottom:14px;">
-        <span class="field__label">Fecha</span>
-        <select class="field__input" id="matrixMatchdaySelect">
-          <option value="">Elegí una fecha…</option>
-        </select>
-      </label>
-      <div id="votesMatrixWrap" class="votes-matrix-wrap">
-        <p class="empty-state">Elegí una fecha arriba para ver los votos.</p>
-      </div>
-    </section>
-
-    <!-- ============ REPARAR PRONÓSTICOS SIN CALIFICAR ============ -->
-    <section class="section" aria-labelledby="repairTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="repairTitulo">⚠️ Pronósticos sin calificar</h2>
-        <p class="section__hint">Pasa cuando alguien vota justo en el instante en que cargás un resultado. Revisá y reparalo acá.</p>
-      </div>
-      <p class="section__hint" id="orphanedCount">Revisando…</p>
-      <button class="btn btn--primary" id="repairBtn" type="button" hidden>Reparar ahora</button>
-      <p class="field__error" id="repairError" role="alert" hidden></p>
-      <p class="section__hint" id="repairResult" hidden></p>
-    </section>
-
-    <!-- ============ RESULTADOS EN TIEMPO REAL (API-FOOTBALL) ============ -->
-    <section class="section" aria-labelledby="liveScoresTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="liveScoresTitulo">Resultados en tiempo real</h2>
-        <p class="section__hint" id="liveScoresStatus">Revisando configuración…</p>
-      </div>
-      <button class="btn btn--ghost" id="syncNowBtn" type="button">Sincronizar ahora</button>
-      <p class="field__error" id="syncError" role="alert" hidden></p>
-      <p class="section__hint" id="syncResult" hidden></p>
-    </section>
-
-    <!-- ============ PARTIDOS PROGRAMADOS: cargar resultado ============ -->
-    <section class="section" aria-labelledby="programadosTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="programadosTitulo">Partidos programados</h2>
-        <p class="section__hint">Elegí el resultado final para calificar los pronósticos, o vinculá el partido con API-Football para que se cargue solo.</p>
-      </div>
-      <div class="matches" id="scheduledList">
-        <p class="empty-state">Cargando…</p>
-      </div>
-    </section>
-
-    <!-- ============ PARTIDOS FINALIZADOS: corregir si hace falta ============ -->
-    <section class="section" aria-labelledby="finalizadosTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="finalizadosTitulo">Ya finalizados</h2>
-        <p class="section__hint">Si cargaste mal un resultado, corregilo acá — reajusta los puntos solo.</p>
-      </div>
-      <div class="matches" id="finishedList">
-        <p class="empty-state">Cargando…</p>
-      </div>
-    </section>
-
-    <!-- ============ CARGAR PUNTOS EXISTENTES ============ -->
-    <section class="section" aria-labelledby="puntosTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="puntosTitulo">Cargar puntos que ya tenían</h2>
-        <p class="section__hint">Suma (o resta, con número negativo) puntos manuales a un usuario ya registrado.</p>
-      </div>
-      <form id="pointsForm" class="ticket__form" style="max-width:480px;" novalidate>
-        <label class="field">
-          <span class="field__label">Filtrar por grupo</span>
-          <select class="field__input" id="pointsGroupFilter">
+      <!-- ============ CARGAR PRONÓSTICOS YA HECHOS (fuera del sistema) ============ -->
+      <section class="section" aria-labelledby="pronosticosManualesTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="pronosticosManualesTitulo">Cargar pronósticos ya hechos</h2>
+          <p class="section__hint">Para volcar lo que la gente ya votó antes de usar este sistema. Solo vos podés hacer esto.</p>
+        </div>
+        <label class="field" style="max-width:420px; margin-bottom:16px;">
+          <span class="field__label">Filtrar usuarios por grupo</span>
+          <select class="field__input" id="manualGroupFilter">
             <option value="">Todos los grupos</option>
           </select>
         </label>
-        <label class="field">
-          <span class="field__label">Usuario</span>
-          <select class="field__input" name="user_id" id="pointsUserSelect">
-            <option value="">Cargando usuarios…</option>
+        <label class="field" style="max-width:420px; margin-bottom:16px;">
+          <span class="field__label">Elegí el partido</span>
+          <select class="field__input" id="manualMatchSelect">
+            <option value="">Seleccioná un partido…</option>
           </select>
         </label>
-        <label class="field">
-          <span class="field__label">Puntos a sumar (o restar, con "-")</span>
-          <input class="field__input" type="number" name="points" placeholder="Ej: 12" required>
-        </label>
-        <button class="btn btn--ghost" type="submit">Aplicar puntos</button>
-        <p class="field__error" id="pointsError" role="alert" hidden></p>
-        <p class="section__hint" id="pointsSuccess" hidden></p>
-      </form>
+        <div class="board" id="manualPredictionsList">
+          <p class="empty-state">Elegí un partido arriba para ver a los usuarios.</p>
+        </div>
+      </section>
 
-      <div class="section__head" style="margin-top:28px;">
-        <h2 class="section__title" style="font-size:20px;">Aciertos y partidos previos al sistema</h2>
-        <p class="section__hint">Para que la tabla muestre el conteo real (ej: "5/18") sumando los partidos que jugaron antes de usar la web. Fija el número — no lo suma.</p>
-      </div>
-      <form id="extraStatsForm" class="ticket__form" style="max-width:480px;" novalidate>
-        <label class="field">
-          <span class="field__label">Usuario</span>
-          <select class="field__input" name="user_id" id="extraStatsUserSelect">
-            <option value="">Cargando usuarios…</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="field__label">Partidos jugados antes del sistema</span>
-          <input class="field__input" type="number" name="extra_matches" placeholder="Ej: 6" min="0" required>
-        </label>
-        <label class="field">
-          <span class="field__label">De esos, cuántos acertó</span>
-          <input class="field__input" type="number" name="extra_hits" placeholder="Ej: 2" min="0" required>
-        </label>
-        <button class="btn btn--ghost" type="submit">Guardar</button>
-        <p class="field__error" id="extraStatsError" role="alert" hidden></p>
-        <p class="section__hint" id="extraStatsSuccess" hidden></p>
-      </form>
-    </section>
+      <!-- ============ REPARAR PRONÓSTICOS SIN CALIFICAR ============ -->
+      <section class="section" aria-labelledby="repairTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="repairTitulo">⚠️ Pronósticos sin calificar</h2>
+          <p class="section__hint">Pasa cuando alguien vota justo en el instante en que cargás un resultado. Revisá y reparalo acá.</p>
+        </div>
+        <p class="section__hint" id="orphanedCount">Revisando…</p>
+        <button class="btn btn--primary" id="repairBtn" type="button" hidden>Reparar ahora</button>
+        <p class="field__error" id="repairError" role="alert" hidden></p>
+        <p class="section__hint" id="repairResult" hidden></p>
+      </section>
 
-    <!-- ============ PUNTOS EXTRA: CAMPEÓN / VICECAMPEÓN / GOLEADOR ============ -->
-    <section class="section" aria-labelledby="specialTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="specialTitulo">Puntos extra</h2>
-        <p class="section__hint">Campeón (10 pts) · Vicecampeón (5 pts) · Goleador (5 pts). Cargá la respuesta correcta cuando se sepa.</p>
-      </div>
-      <form id="specialDeadlineForm" class="ticket__form" style="max-width:420px; margin-bottom:20px;" novalidate>
-        <label class="field">
-          <span class="field__label">Horario límite para cargar pronósticos especiales</span>
-          <input class="field__input" type="datetime-local" name="deadline">
-        </label>
-        <button class="btn btn--ghost" type="submit">Guardar horario límite</button>
-        <p class="field__error" id="specialDeadlineError" role="alert" hidden></p>
-        <p class="section__hint" id="specialDeadlineStatus"></p>
-      </form>
-      <div id="specialAdminList" style="display:grid; gap:16px; max-width:520px;">
-        <p class="empty-state">Cargando…</p>
-      </div>
-    </section>
+    </div>
 
-    <!-- ============ CARGAR PRONÓSTICOS YA HECHOS (fuera del sistema) ============ -->
-    <section class="section" aria-labelledby="pronosticosManualesTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="pronosticosManualesTitulo">Cargar pronósticos ya hechos</h2>
-        <p class="section__hint">Para volcar lo que la gente ya votó antes de usar este sistema. Solo vos podés hacer esto.</p>
-      </div>
-      <label class="field" style="max-width:420px; margin-bottom:16px;">
-        <span class="field__label">Filtrar usuarios por grupo</span>
-        <select class="field__input" id="manualGroupFilter">
-          <option value="">Todos los grupos</option>
-        </select>
-      </label>
-      <label class="field" style="max-width:420px; margin-bottom:16px;">
-        <span class="field__label">Elegí el partido</span>
-        <select class="field__input" id="manualMatchSelect">
-          <option value="">Seleccioná un partido…</option>
-        </select>
-      </label>
-      <div class="board" id="manualPredictionsList">
-        <p class="empty-state">Elegí un partido arriba para ver a los usuarios.</p>
-      </div>
-    </section>
+    <!-- ============================================================
+         PESTAÑA: PUNTOS
+         ============================================================ -->
+    <div class="admin-tab" id="adminTab-puntos" hidden>
 
-    <!-- ============ HORARIO LÍMITE PARA VOTAR ============ -->
-    <section class="section" aria-labelledby="deadlineTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="deadlineTitulo">Horario límite para votar</h2>
-        <p class="section__hint">Uno por fecha — ya con los 5 minutos de margen descontados (ej: si arranca 17:00, cargá 16:55).</p>
-      </div>
-      <form id="deadlineForm" class="ticket__form" style="max-width:420px; margin-bottom:24px;" novalidate>
-        <label class="field">
-          <span class="field__label">Fecha / jornada</span>
-          <input class="field__input" type="number" name="matchday" placeholder="Ej: 1" min="1" required>
-        </label>
-        <label class="field">
-          <span class="field__label">Horario máximo para votar</span>
-          <input class="field__input" type="datetime-local" name="vote_deadline" required>
-        </label>
-        <button class="btn btn--primary" type="submit">Guardar horario</button>
-        <p class="field__error" id="deadlineError" role="alert" hidden></p>
-      </form>
-      <div class="board" id="deadlinesList">
-        <p class="empty-state">Cargando horarios…</p>
-      </div>
-    </section>
+      <!-- ============ CARGAR PUNTOS EXISTENTES ============ -->
+      <section class="section" aria-labelledby="puntosTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="puntosTitulo">Cargar puntos que ya tenían</h2>
+          <p class="section__hint">Suma (o resta, con número negativo) puntos manuales a un usuario ya registrado.</p>
+        </div>
+        <form id="pointsForm" class="ticket__form" style="max-width:480px;" novalidate>
+          <label class="field">
+            <span class="field__label">Filtrar por grupo</span>
+            <select class="field__input" id="pointsGroupFilter">
+              <option value="">Todos los grupos</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Usuario</span>
+            <select class="field__input" name="user_id" id="pointsUserSelect">
+              <option value="">Cargando usuarios…</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Puntos a sumar (o restar, con "-")</span>
+            <input class="field__input" type="number" name="points" placeholder="Ej: 12" required>
+          </label>
+          <button class="btn btn--ghost" type="submit">Aplicar puntos</button>
+          <p class="field__error" id="pointsError" role="alert" hidden></p>
+          <p class="section__hint" id="pointsSuccess" hidden></p>
+        </form>
 
-    <!-- ============ GRUPOS DE AMIGOS ============ -->
-    <section class="section" aria-labelledby="gruposTitulo">
-      <div class="section__head">
-        <h2 class="section__title" id="gruposTitulo">Grupos de amigos</h2>
-        <p class="section__hint">Cada grupo tiene su propia tabla de posiciones. Compartí el código con tus amigos.</p>
-      </div>
-      <form id="createGroupForm" class="ticket__form" style="max-width:420px; margin-bottom:24px;" novalidate>
-        <label class="field">
-          <span class="field__label">Nombre del grupo</span>
-          <input class="field__input" type="text" name="name" placeholder="Ej: Los del barrio" required>
-        </label>
-        <button class="btn btn--primary" type="submit">Crear grupo</button>
-        <p class="field__error" id="groupError" role="alert" hidden></p>
-      </form>
-      <div class="board" id="groupsList">
-        <p class="empty-state">Cargando grupos…</p>
-      </div>
-    </section>
+        <div class="section__head" style="margin-top:28px;">
+          <h2 class="section__title" style="font-size:20px;">Aciertos y partidos previos al sistema</h2>
+          <p class="section__hint">Para que la tabla muestre el conteo real (ej: "5/18") sumando los partidos que jugaron antes de usar la web. Fija el número — no lo suma.</p>
+        </div>
+        <form id="extraStatsForm" class="ticket__form" style="max-width:480px;" novalidate>
+          <label class="field">
+            <span class="field__label">Usuario</span>
+            <select class="field__input" name="user_id" id="extraStatsUserSelect">
+              <option value="">Cargando usuarios…</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Partidos jugados antes del sistema</span>
+            <input class="field__input" type="number" name="extra_matches" placeholder="Ej: 6" min="0" required>
+          </label>
+          <label class="field">
+            <span class="field__label">De esos, cuántos acertó</span>
+            <input class="field__input" type="number" name="extra_hits" placeholder="Ej: 2" min="0" required>
+          </label>
+          <button class="btn btn--ghost" type="submit">Guardar</button>
+          <p class="field__error" id="extraStatsError" role="alert" hidden></p>
+          <p class="section__hint" id="extraStatsSuccess" hidden></p>
+        </form>
+      </section>
+
+    </div>
+
+    <!-- ============================================================
+         PESTAÑA: ESPECIALES
+         ============================================================ -->
+    <div class="admin-tab" id="adminTab-especiales" hidden>
+
+      <!-- ============ PUNTOS EXTRA: CAMPEÓN / VICECAMPEÓN / GOLEADOR ============ -->
+      <section class="section" aria-labelledby="specialTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="specialTitulo">Puntos extra</h2>
+          <p class="section__hint">Campeón (10 pts) · Vicecampeón (5 pts) · Goleador (5 pts). Cargá la respuesta correcta cuando se sepa.</p>
+        </div>
+        <form id="specialDeadlineForm" class="ticket__form" style="max-width:420px; margin-bottom:20px;" novalidate>
+          <label class="field">
+            <span class="field__label">Horario límite para cargar pronósticos especiales</span>
+            <input class="field__input" type="datetime-local" name="deadline">
+          </label>
+          <button class="btn btn--ghost" type="submit">Guardar horario límite</button>
+          <p class="field__error" id="specialDeadlineError" role="alert" hidden></p>
+          <p class="section__hint" id="specialDeadlineStatus"></p>
+        </form>
+        <div id="specialAdminList" style="display:grid; gap:16px; max-width:520px;">
+          <p class="empty-state">Cargando…</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ============================================================
+         PESTAÑA: GRUPOS
+         ============================================================ -->
+    <div class="admin-tab" id="adminTab-grupos" hidden>
+
+      <!-- ============ GRUPOS DE AMIGOS ============ -->
+      <section class="section" aria-labelledby="gruposTitulo">
+        <div class="section__head">
+          <h2 class="section__title" id="gruposTitulo">Grupos de amigos</h2>
+          <p class="section__hint">Cada grupo tiene su propia tabla de posiciones. Compartí el código con tus amigos.</p>
+        </div>
+        <form id="createGroupForm" class="ticket__form" style="max-width:420px; margin-bottom:24px;" novalidate>
+          <label class="field">
+            <span class="field__label">Nombre del grupo</span>
+            <input class="field__input" type="text" name="name" placeholder="Ej: Los del barrio" required>
+          </label>
+          <button class="btn btn--primary" type="submit">Crear grupo</button>
+          <p class="field__error" id="groupError" role="alert" hidden></p>
+        </form>
+        <div class="board" id="groupsList">
+          <p class="empty-state">Cargando grupos…</p>
+        </div>
+      </section>
+
+    </div>
 
   </div>
 

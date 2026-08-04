@@ -506,10 +506,13 @@ async function loadVotesMatrix() {
     }
 
     // pickByUserAndMatch[userId][matchId] = "LOCAL" | "EMPATE" | "VISITA"
+    // pointsByUser[userId] = suma de points_earned de esta fecha (0 si no calificado/no votó)
     const pickByUserAndMatch = {};
+    const pointsByUser = {};
     predictions.forEach((p) => {
       pickByUserAndMatch[p.user_id] = pickByUserAndMatch[p.user_id] || {};
       pickByUserAndMatch[p.user_id][p.match_id] = p.user_pick;
+      pointsByUser[p.user_id] = (pointsByUser[p.user_id] || 0) + (p.points_earned || 0);
     });
 
     const pickShort = { LOCAL: "L", EMPATE: "E", VISITA: "V" };
@@ -529,13 +532,14 @@ async function loadVotesMatrix() {
             return `<td class="${pickClass[pick]}${isHit ? " pick-hit" : ""}">${pickShort[pick]}</td>`;
           })
           .join("");
-        return `<tr><th>${escapeHtml(u.nickname)}</th>${cells}</tr>`;
+        const puntosFecha = pointsByUser[u.id] || 0;
+        return `<tr><th>${escapeHtml(u.nickname)}</th>${cells}<td class="votes-matrix__points">${puntosFecha}</td><td class="votes-matrix__points">${u.total_points}</td></tr>`;
       })
       .join("");
 
     votesMatrixWrap.innerHTML = `
       <table class="votes-matrix">
-        <thead><tr><th>Usuario</th>${headerCells}</tr></thead>
+        <thead><tr><th>Usuario</th>${headerCells}<th>Puntos<br>fecha</th><th>Puntos<br>total</th></tr></thead>
         <tbody>${bodyRows}</tbody>
       </table>`;
   } catch {
@@ -1224,4 +1228,31 @@ createGroupForm.addEventListener("submit", async (e) => {
     groupError.hidden = false;
     checkServerConnection();
   }
+});
+
+/* ============================================================
+   Menú de pestañas del admin
+   ============================================================ */
+const adminSegmentNav = document.getElementById("adminSegmentNav");
+const adminTabs = {
+  partidos: document.getElementById("adminTab-partidos"),
+  votos: document.getElementById("adminTab-votos"),
+  puntos: document.getElementById("adminTab-puntos"),
+  especiales: document.getElementById("adminTab-especiales"),
+  grupos: document.getElementById("adminTab-grupos"),
+};
+
+function switchAdminTab(name) {
+  Object.entries(adminTabs).forEach(([key, el]) => {
+    if (el) el.hidden = key !== name;
+  });
+  adminSegmentNav.querySelectorAll(".segment-btn").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.adminTab === name);
+  });
+}
+
+adminSegmentNav.addEventListener("click", (e) => {
+  const btn = e.target.closest(".segment-btn");
+  if (!btn) return;
+  switchAdminTab(btn.dataset.adminTab);
 });

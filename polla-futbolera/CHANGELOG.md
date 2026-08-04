@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.0 — Menú en el panel de admin + columnas de puntos en la matriz
+
+### Menú de pestañas en el admin
+El panel tenía demasiadas secciones apiladas. Ahora hay un menú arriba con
+5 pestañas:
+- **Partidos** — cargar/crear partidos, resultados en tiempo real, programados,
+  finalizados, horario límite para votar.
+- **Votos** — matriz de votos por fecha, cargar pronósticos ya hechos, reparar
+  pronósticos sin calificar.
+- **Puntos** — cargar puntos que ya tenían, aciertos y partidos previos.
+- **Especiales** — Campeón/Vicecampeón/Goleador y su horario límite.
+- **Grupos** — grupos de amigos.
+
+### Matriz de votos: dos columnas nuevas
+La tabla de "Votos por fecha" ahora suma, al final de cada fila:
+- **Puntos fecha** — lo que esa persona sumó solo en los partidos de la
+  fecha elegida.
+- **Puntos total** — su puntaje general (el mismo que ve en la tabla de
+  posiciones).
+
 ## v1.3.1 — Hotfix: error de compilación en src/apiFootball.ts
 
 El build fallaba en Render con `TS18046: 'data' is of type 'unknown'`
