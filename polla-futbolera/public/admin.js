@@ -61,10 +61,14 @@ function showPanel() {
   adminSessionPill.hidden = false;
   loadMatches();
   loadUsersForPoints();
+  loadUsersForExtraStats();
   loadGroups();
   loadDeadlines();
   loadSpecialAdmin();
   loadSpecialDeadline();
+  loadLiveScoresStatus();
+  checkOrphanedPredictions();
+  loadMatchdaysForMatrix();
 }
 
 function showLogin() {
@@ -281,7 +285,12 @@ function renderMatchResultCard(match, isFinished) {
       <button class="pick-btn" data-result="VISITA" type="button">Ganó Visita</button>
     </div>
     <p class="field__error" hidden></p>
+    ${!isFinished ? renderFixtureLinkHtml(match) : ""}
   `;
+
+  if (!isFinished) {
+    setupFixtureLinkUI(card, match);
+  }
 
   const picksDiv = card.querySelector(".picks");
   const buttons = card.querySelectorAll(".pick-btn");
@@ -336,6 +345,316 @@ function renderMatchResultCard(match, isFinished) {
 
   return card;
 }
+
+/* ============================================================
+   Vincular un partido con un fixture de API-Football
+   ============================================================ */
+function renderFixtureLinkHtml(match) {
+  if (match.api_fixture_id) {
+    const marcador =
+      match.live_home_score != null && match.live_away_score != null
+        ? ` · ${match.live_home_score} - ${match.live_away_score} (${match.live_status || "?"})`
+        : "";
+    return `
+      <div class="fixture-link fixture-link--linked">
+        <p class="section__hint">Vinculado a fixture #${match.api_fixture_id}${marcador} — se actualiza solo.</p>
+        <button class="session-logout unlink-fixture-btn" type="button">Desvincular</button>
+      </div>`;
+  }
+
+  return `
+    <div class="fixture-link">
+      <button class="btn btn--ghost link-fixture-toggle" type="button">Vincular con API-Football</button>
+      <div class="fixture-link__panel" hidden>
+        <label class="field field--compact">
+          <span class="field__label">Fecha del partido (para buscar)</span>
+          <input class="field__input" type="date">
+        </label>
+        <button class="btn btn--ghost search-fixtures-btn" type="button">Buscar</button>
+        <div class="fixture-results"></div>
+      </div>
+    </div>`;
+}
+
+function setupFixtureLinkUI(card, match) {
+  const unlinkBtn = card.querySelector(".unlink-fixture-btn");
+  if (unlinkBtn) {
+    unlinkBtn.addEventListener("click", async () => {
+      const confirmed = confirm(`¿Desvincular ${match.local_team} vs ${match.away_team} de API-Football?`);
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`${API}/admin/matches/${match.id}/link-fixture`, {
+          method: "DELETE",
+          headers: adminHeaders(),
+        });
+        if (res.status === 401) return showLogin();
+        loadMatches();
+      } catch {
+        checkServerConnection();
+      }
+    });
+    return;
+  }
+
+  const toggleBtn = card.querySelector(".link-fixture-toggle");
+  const panel = card.querySelector(".fixture-link__panel");
+  const dateInput = card.querySelector(".fixture-link__panel input[type=date]");
+  const searchBtn = card.querySelector(".search-fixtures-btn");
+  const resultsDiv = card.querySelector(".fixture-results");
+
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener("click", () => {
+    panel.hidden = !panel.hidden;
+  });
+
+  searchBtn.addEventListener("click", async () => {
+    if (!dateInput.value) return;
+    resultsDiv.innerHTML = `<p class="empty-state">Buscando…</p>`;
+
+    try {
+      const res = await fetch(
+        `${API}/admin/matches/${match.id}/search-fixtures?date=${dateInput.value}`,
+        { headers: adminHeaders() }
+      );
+      if (res.status === 401) return showLogin();
+      const data = await res.json();
+
+      if (!res.ok) {
+        resultsDiv.innerHTML = `<p class="field__error">${escapeHtml(data.error || "No se pudo buscar.")}</p>`;
+        return;
+      }
+      if (!data.length) {
+        resultsDiv.innerHTML = `<p class="empty-state">No hay partidos de la liga configurada en esa fecha.</p>`;
+        return;
+      }
+
+      resultsDiv.innerHTML = data
+        .map(
+          (f) => `
+          <div class="fixture-option">
+            <span>${escapeHtml(f.home_team)} vs ${escapeHtml(f.away_team)} — ${f.status_short}</span>
+            <button class="pick-btn link-this-fixture" type="button" data-fixture-id="${f.fixture_id}">Vincular</button>
+          </div>`
+        )
+        .join("");
+
+      resultsDiv.querySelectorAll(".link-this-fixture").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          try {
+            const linkRes = await fetch(`${API}/admin/matches/${match.id}/link-fixture`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...adminHeaders() },
+              body: JSON.stringify({ api_fixture_id: Number(btn.dataset.fixtureId) }),
+            });
+            if (linkRes.status === 401) return showLogin();
+            loadMatches();
+          } catch {
+            checkServerConnection();
+          }
+        });
+      });
+    } catch {
+      resultsDiv.innerHTML = `<p class="empty-state">No se pudo conectar con el servidor.</p>`;
+    }
+  });
+}
+
+/* ============================================================
+   Matriz de votos por fecha (usuarios x partidos)
+   ============================================================ */
+const matrixMatchdaySelect = document.getElementById("matrixMatchdaySelect");
+const votesMatrixWrap = document.getElementById("votesMatrixWrap");
+
+async function loadMatchdaysForMatrix() {
+  try {
+    const res = await fetch(`${API}/admin/matchdays-list`, { headers: adminHeaders() });
+    if (res.status === 401) return showLogin();
+    const matchdays = await res.json();
+
+    const current = matrixMatchdaySelect.value;
+    matrixMatchdaySelect.innerHTML =
+      `<option value="">Elegí una fecha…</option>` +
+      matchdays.map((d) => `<option value="${d}">Fecha ${d}</option>`).join("");
+    matrixMatchdaySelect.value = current;
+  } catch {
+    matrixMatchdaySelect.innerHTML = `<option value="">No se pudieron cargar las fechas</option>`;
+  }
+}
+
+matrixMatchdaySelect.addEventListener("change", loadVotesMatrix);
+
+async function loadVotesMatrix() {
+  const matchday = matrixMatchdaySelect.value;
+  if (!matchday) {
+    votesMatrixWrap.innerHTML = `<p class="empty-state">Elegí una fecha arriba para ver los votos.</p>`;
+    return;
+  }
+
+  votesMatrixWrap.innerHTML = `<p class="empty-state">Cargando…</p>`;
+
+  try {
+    const res = await fetch(`${API}/admin/votes-matrix?matchday=${matchday}`, {
+      headers: adminHeaders(),
+    });
+    if (res.status === 401) return showLogin();
+    const { matches, users, predictions } = await res.json();
+
+    if (!matches.length) {
+      votesMatrixWrap.innerHTML = `<p class="empty-state">No hay partidos cargados en esa fecha.</p>`;
+      return;
+    }
+
+    // pickByUserAndMatch[userId][matchId] = "LOCAL" | "EMPATE" | "VISITA"
+    const pickByUserAndMatch = {};
+    predictions.forEach((p) => {
+      pickByUserAndMatch[p.user_id] = pickByUserAndMatch[p.user_id] || {};
+      pickByUserAndMatch[p.user_id][p.match_id] = p.user_pick;
+    });
+
+    const pickShort = { LOCAL: "L", EMPATE: "E", VISITA: "V" };
+    const pickClass = { LOCAL: "pick-local", EMPATE: "pick-empate", VISITA: "pick-visita" };
+
+    const headerCells = matches
+      .map((m) => `<th>${escapeHtml(m.local_team)}<br>vs<br>${escapeHtml(m.away_team)}${m.status === "FINISHED" ? `<br><span style="color:var(--gold);">${m.result}</span>` : ""}</th>`)
+      .join("");
+
+    const bodyRows = users
+      .map((u) => {
+        const cells = matches
+          .map((m) => {
+            const pick = pickByUserAndMatch[u.id]?.[m.id];
+            if (!pick) return `<td class="pick-empty">—</td>`;
+            const isHit = m.status === "FINISHED" && m.result === pick;
+            return `<td class="${pickClass[pick]}${isHit ? " pick-hit" : ""}">${pickShort[pick]}</td>`;
+          })
+          .join("");
+        return `<tr><th>${escapeHtml(u.nickname)}</th>${cells}</tr>`;
+      })
+      .join("");
+
+    votesMatrixWrap.innerHTML = `
+      <table class="votes-matrix">
+        <thead><tr><th>Usuario</th>${headerCells}</tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`;
+  } catch {
+    votesMatrixWrap.innerHTML = `<p class="empty-state">No se pudo cargar la matriz de votos.</p>`;
+  }
+}
+
+/* ============================================================
+   Reparar pronósticos sin calificar (condición de carrera)
+   ============================================================ */
+const orphanedCount = document.getElementById("orphanedCount");
+const repairBtn = document.getElementById("repairBtn");
+const repairError = document.getElementById("repairError");
+const repairResult = document.getElementById("repairResult");
+
+async function checkOrphanedPredictions() {
+  try {
+    const res = await fetch(`${API}/admin/orphaned-predictions`, { headers: adminHeaders() });
+    if (res.status === 401) return showLogin();
+    const rows = await res.json();
+
+    if (!rows.length) {
+      orphanedCount.textContent = "Ninguno por ahora — todo está calificado correctamente.";
+      repairBtn.hidden = true;
+      return;
+    }
+
+    const detalle = rows
+      .map((r) => `${escapeHtml(r.nickname)} (${escapeHtml(r.local_team)} vs ${escapeHtml(r.away_team)})`)
+      .join(", ");
+    orphanedCount.textContent = `Encontrados ${rows.length}: ${detalle}`;
+    repairBtn.hidden = false;
+  } catch {
+    orphanedCount.textContent = "No se pudo revisar.";
+  }
+}
+
+repairBtn.addEventListener("click", async () => {
+  repairError.hidden = true;
+  repairResult.hidden = true;
+  repairBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/admin/orphaned-predictions/repair`, {
+      method: "POST",
+      headers: adminHeaders(),
+    });
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+
+    if (!res.ok) {
+      repairError.textContent = data.error || "No se pudo reparar.";
+      repairError.hidden = false;
+      return;
+    }
+
+    repairResult.textContent = `Listo: se calificaron ${data.repaired} pronósticos, se sumaron ${data.pointsAwarded} puntos en total.`;
+    repairResult.hidden = false;
+    checkOrphanedPredictions();
+  } catch {
+    repairError.textContent = "No se pudo conectar con el servidor.";
+    repairError.hidden = false;
+    checkServerConnection();
+  } finally {
+    repairBtn.disabled = false;
+  }
+});
+
+/* ============================================================
+   Estado y sincronización manual de resultados en vivo
+   ============================================================ */
+const liveScoresStatus = document.getElementById("liveScoresStatus");
+const syncNowBtn = document.getElementById("syncNowBtn");
+const syncError = document.getElementById("syncError");
+const syncResult = document.getElementById("syncResult");
+
+async function loadLiveScoresStatus() {
+  try {
+    const res = await fetch(`${API}/admin/live-scores/status`, { headers: adminHeaders() });
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+    liveScoresStatus.textContent = data.configured
+      ? "API-Football configurada — los partidos vinculados se actualizan solos."
+      : "API-Football todavía no está configurada (faltan variables de entorno). Podés seguir cargando resultados a mano.";
+  } catch {
+    liveScoresStatus.textContent = "No se pudo consultar el estado.";
+  }
+}
+
+syncNowBtn.addEventListener("click", async () => {
+  syncError.hidden = true;
+  syncResult.hidden = true;
+  syncNowBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/admin/live-scores/sync`, {
+      method: "POST",
+      headers: adminHeaders(),
+    });
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+
+    if (!res.ok) {
+      syncError.textContent = data.error || "No se pudo sincronizar.";
+      syncError.hidden = false;
+      return;
+    }
+
+    syncResult.textContent = `Revisados: ${data.checked} · Calificados automáticamente: ${data.settled}`;
+    syncResult.hidden = false;
+    loadMatches();
+  } catch {
+    syncError.textContent = "No se pudo conectar con el servidor.";
+    syncError.hidden = false;
+    checkServerConnection();
+  } finally {
+    syncNowBtn.disabled = false;
+  }
+});
 
 /* ============================================================
    Puntos extra (Campeón / Vicecampeón / Goleador)
@@ -645,6 +964,76 @@ pointsForm.addEventListener("submit", async (e) => {
 });
 
 /* ============================================================
+   Aciertos y partidos jugados antes del sistema
+   ============================================================ */
+const extraStatsForm = document.getElementById("extraStatsForm");
+const extraStatsError = document.getElementById("extraStatsError");
+const extraStatsSuccess = document.getElementById("extraStatsSuccess");
+const extraStatsUserSelect = document.getElementById("extraStatsUserSelect");
+
+async function loadUsersForExtraStats() {
+  try {
+    const res = await fetch(`${API}/admin/users`, { headers: adminHeaders() });
+    if (res.status === 401) return showLogin();
+    const users = await res.json();
+
+    extraStatsUserSelect.innerHTML = users.length
+      ? users
+          .map(
+            (u) =>
+              `<option value="${u.id}">${escapeHtml(u.nickname)} — ${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)} (previo: ${u.extra_hits}/${u.extra_matches})</option>`
+          )
+          .join("")
+      : `<option value="">No hay usuarios registrados</option>`;
+  } catch {
+    extraStatsUserSelect.innerHTML = `<option value="">No se pudo cargar</option>`;
+  }
+}
+
+extraStatsForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  extraStatsError.hidden = true;
+  extraStatsSuccess.hidden = true;
+
+  const formData = new FormData(extraStatsForm);
+  const userId = formData.get("user_id");
+  const extra_matches = Number(formData.get("extra_matches"));
+  const extra_hits = Number(formData.get("extra_hits"));
+
+  if (!userId || Number.isNaN(extra_matches) || Number.isNaN(extra_hits)) {
+    extraStatsError.textContent = "Elegí un usuario y completá ambos números.";
+    extraStatsError.hidden = false;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/admin/users/${userId}/extra-stats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ extra_hits, extra_matches }),
+    });
+
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+
+    if (!res.ok) {
+      extraStatsError.textContent = data.error || "No se pudo guardar.";
+      extraStatsError.hidden = false;
+      return;
+    }
+
+    extraStatsSuccess.textContent = `Listo: ${data.nickname} ahora suma ${data.extra_hits}/${data.extra_matches} de antes del sistema.`;
+    extraStatsSuccess.hidden = false;
+    extraStatsForm.reset();
+    loadUsersForExtraStats();
+  } catch {
+    extraStatsError.textContent = "No se pudo conectar con el servidor.";
+    extraStatsError.hidden = false;
+    checkServerConnection();
+  }
+});
+
+/* ============================================================
    Horario límite para votar, por fecha
    ============================================================ */
 const deadlineForm = document.getElementById("deadlineForm");
@@ -836,13 +1225,3 @@ createGroupForm.addEventListener("submit", async (e) => {
     checkServerConnection();
   }
 });
-
-/* ============================================================
-   Init
-   ============================================================ */
-checkServerConnection();
-if (getAdminToken()) {
-  showPanel();
-} else {
-  showLogin();
-}

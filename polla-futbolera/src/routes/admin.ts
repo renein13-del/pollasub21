@@ -2,6 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { query, queryOne, pool } from "../db";
 import { requireAdmin } from "../auth";
+import { searchFixturesByDate, isApiFootballConfigured } from "../apiFootball";
+import { syncLiveScores } from "../liveScores";
 
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
@@ -9,7 +11,7 @@ adminRouter.use(requireAdmin);
 // GET /admin/users -> listar usuarios para buscar a quién ajustarle puntos
 adminRouter.get("/users", async (_req, res) => {
   const users = await query(
-    "SELECT id, first_name, last_name, nickname, total_points FROM users ORDER BY nickname"
+    "SELECT id, first_name, last_name, nickname, total_points, extra_hits, extra_matches FROM users ORDER BY nickname"
   );
   res.json(users);
 });
@@ -29,6 +31,34 @@ adminRouter.post("/users/:id/points", async (req, res) => {
   const user = await queryOne(
     "UPDATE users SET total_points = total_points + $1 WHERE id = $2 RETURNING id, first_name, last_name, nickname, total_points",
     [parsed.data.points, req.params.id]
+  );
+
+  if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+  res.json(user);
+});
+
+// POST /admin/users/:id/extra-stats -> fija (no suma) los aciertos y partidos jugados
+// ANTES de usar el sistema, para que la tabla de posiciones muestre el conteo real
+// de aciertos (ej: "5/18") en vez de solo los partidos cargados como registro individual.
+const extraStatsSchema = z.object({
+  extra_hits: z.number().int().min(0),
+  extra_matches: z.number().int().min(0),
+});
+
+adminRouter.post("/users/:id/extra-stats", async (req, res) => {
+  const parsed = extraStatsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Ingresá números enteros (0 o más) para aciertos y partidos previos" });
+  }
+  if (parsed.data.extra_hits > parsed.data.extra_matches) {
+    return res.status(400).json({ error: "Los aciertos previos no pueden ser más que los partidos previos" });
+  }
+
+  const user = await queryOne(
+    `UPDATE users SET extra_hits = $1, extra_matches = $2
+     WHERE id = $3
+     RETURNING id, first_name, last_name, nickname, total_points, extra_hits, extra_matches`,
+    [parsed.data.extra_hits, parsed.data.extra_matches, req.params.id]
   );
 
   if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
@@ -276,6 +306,20 @@ adminRouter.get("/groups", async (_req, res) => {
   res.json(groups);
 });
 
+// GET /admin/groups/:id/members -> usuarios de un grupo puntual (para filtrar
+// "Cargar puntos" y "Cargar pronósticos ya hechos")
+adminRouter.get("/groups/:id/members", async (req, res) => {
+  const rows = await query(
+    `SELECT u.id, u.first_name, u.last_name, u.nickname, u.total_points
+     FROM users u
+     JOIN group_members gm ON gm.user_id = u.id
+     WHERE gm.group_id = $1
+     ORDER BY u.nickname`,
+    [req.params.id]
+  );
+  res.json(rows);
+});
+
 /* ============================================================
    Horario límite para votar, por fecha/jornada
    ============================================================ */
@@ -352,16 +396,170 @@ adminRouter.delete("/special/deadline", async (_req, res) => {
 });
 
 /* ============================================================
-   Usuarios filtrados por grupo (para manejar cada mini-liga aparte)
+   Resultados en tiempo real (API-Football)
    ============================================================ */
-adminRouter.get("/groups/:id/members", async (req, res) => {
-  const rows = await query(
-    `SELECT u.id, u.first_name, u.last_name, u.nickname, u.total_points
-     FROM users u
-     JOIN group_members gm ON gm.user_id = u.id
-     WHERE gm.group_id = $1
-     ORDER BY u.nickname`,
+
+// GET /admin/live-scores/status -> si la integración está configurada
+adminRouter.get("/live-scores/status", (_req, res) => {
+  res.json({ configured: isApiFootballConfigured() });
+});
+
+// GET /admin/matches/:id/search-fixtures?date=YYYY-MM-DD -> buscar partidos
+// reales de esa fecha en API-Football, para elegir el fixture correcto sin
+// tener que escribir el ID a mano.
+adminRouter.get("/matches/:id/search-fixtures", async (req, res) => {
+  const { date } = req.query;
+  if (!date || typeof date !== "string") {
+    return res.status(400).json({ error: "Falta la fecha (YYYY-MM-DD)" });
+  }
+  if (!isApiFootballConfigured()) {
+    return res.status(400).json({ error: "API-Football no está configurada (revisá las variables de entorno)" });
+  }
+
+  try {
+    const fixtures = await searchFixturesByDate(date);
+    res.json(fixtures);
+  } catch (err: any) {
+    res.status(502).json({ error: `No se pudo consultar la API: ${err.message}` });
+  }
+});
+
+// POST /admin/matches/:id/link-fixture -> vincular un partido con un fixture de API-Football
+const linkFixtureSchema = z.object({ api_fixture_id: z.number().int() });
+
+adminRouter.post("/matches/:id/link-fixture", async (req, res) => {
+  const parsed = linkFixtureSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Falta el ID del fixture" });
+
+  const match = await queryOne(
+    "UPDATE matches SET api_fixture_id = $1 WHERE id = $2 RETURNING *",
+    [parsed.data.api_fixture_id, req.params.id]
+  );
+  if (!match) return res.status(404).json({ error: "Partido no encontrado" });
+  res.json(match);
+});
+
+// DELETE /admin/matches/:id/link-fixture -> desvincular
+adminRouter.delete("/matches/:id/link-fixture", async (req, res) => {
+  const match = await queryOne(
+    "UPDATE matches SET api_fixture_id = NULL, live_home_score = NULL, live_away_score = NULL, live_status = NULL WHERE id = $1 RETURNING *",
     [req.params.id]
   );
+  if (!match) return res.status(404).json({ error: "Partido no encontrado" });
+  res.json(match);
+});
+
+// POST /admin/live-scores/sync -> forzar una sincronización ahora mismo (además
+// de la que corre sola cada pocos minutos)
+adminRouter.post("/live-scores/sync", async (_req, res) => {
+  try {
+    const result = await syncLiveScores();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ============================================================
+   Reparar pronósticos "huérfanos" (quedaron sin calificar por una
+   condición de carrera entre un pronóstico y la carga del resultado)
+   ============================================================ */
+
+// GET /admin/orphaned-predictions -> cuántos hay y de quién, antes de reparar
+adminRouter.get("/orphaned-predictions", async (_req, res) => {
+  const rows = await query(
+    `SELECT p.id, u.nickname, m.local_team, m.away_team, m.matchday, p.user_pick, m.result
+     FROM predictions p
+     JOIN matches m ON m.id = p.match_id
+     JOIN users u ON u.id = p.user_id
+     WHERE p.points_earned IS NULL AND m.status = 'FINISHED'
+     ORDER BY u.nickname`
+  );
   res.json(rows);
+});
+
+// POST /admin/orphaned-predictions/repair -> califica esos pronósticos y
+// suma los puntos que correspondan (una sola vez, no duplica si se corre de nuevo)
+adminRouter.post("/orphaned-predictions/repair", async (_req, res) => {
+  const client = await pool.connect();
+  let repaired = 0;
+  let pointsAwarded = 0;
+
+  try {
+    await client.query("BEGIN");
+
+    const { rows } = await client.query<{
+      id: number;
+      user_id: number;
+      user_pick: string;
+      result: string;
+    }>(
+      `SELECT p.id, p.user_id, p.user_pick, m.result
+       FROM predictions p
+       JOIN matches m ON m.id = p.match_id
+       WHERE p.points_earned IS NULL AND m.status = 'FINISHED'
+       FOR UPDATE OF p`
+    );
+
+    for (const p of rows) {
+      const points = p.user_pick === p.result ? 1 : 0;
+      await client.query("UPDATE predictions SET points_earned = $1 WHERE id = $2", [
+        points,
+        p.id,
+      ]);
+      if (points) {
+        await client.query("UPDATE users SET total_points = total_points + $1 WHERE id = $2", [
+          points,
+          p.user_id,
+        ]);
+        pointsAwarded += points;
+      }
+      repaired += 1;
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  res.json({ repaired, pointsAwarded });
+});
+
+/* ============================================================
+   Matriz de votos por fecha (usuarios x partidos, para ver todo de un vistazo)
+   ============================================================ */
+
+// GET /admin/matchdays-list -> lista de fechas que tienen partidos cargados
+adminRouter.get("/matchdays-list", async (_req, res) => {
+  const rows = await query<{ matchday: number }>(
+    "SELECT DISTINCT matchday FROM matches WHERE matchday IS NOT NULL ORDER BY matchday"
+  );
+  res.json(rows.map((r) => r.matchday));
+});
+
+// GET /admin/votes-matrix?matchday=X -> partidos de esa fecha, todos los usuarios,
+// y el pronóstico de cada uno (o nada) para cada partido.
+adminRouter.get("/votes-matrix", async (req, res) => {
+  const { matchday } = req.query;
+  if (!matchday) return res.status(400).json({ error: "Falta la fecha" });
+
+  const matches = await query(
+    "SELECT id, local_team, away_team, status, result FROM matches WHERE matchday = $1 ORDER BY id",
+    [matchday]
+  );
+
+  const users = await query("SELECT id, nickname FROM users ORDER BY nickname");
+
+  const predictions = await query(
+    `SELECT p.user_id, p.match_id, p.user_pick
+     FROM predictions p
+     JOIN matches m ON m.id = p.match_id
+     WHERE m.matchday = $1`,
+    [matchday]
+  );
+
+  res.json({ matches, users, predictions });
 });

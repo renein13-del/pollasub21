@@ -434,6 +434,11 @@ function renderMatchCard(match, currentPick, session) {
       : `<p class="match-card__meta">Votá hasta: ${formatDeadline(deadlineIso)}</p>`;
   }
 
+  const isLive = !isFinished && match.live_status && !["NS", "FT", "AET", "PEN"].includes(match.live_status);
+  const liveNote = isLive
+    ? `<p class="match-card__meta" style="color: var(--gold);">⚽ EN VIVO: ${match.live_home_score ?? 0} - ${match.live_away_score ?? 0}</p>`
+    : "";
+
   card.innerHTML = `
     <p class="match-card__meta">${match.matchday ? `Fecha ${match.matchday} · ` : ""}${isFinished ? "Finalizado" : "Programado"}</p>
     <div class="match-card__teams">
@@ -441,6 +446,7 @@ function renderMatchCard(match, currentPick, session) {
       <span class="match-card__vs">vs</span>
       <span>${escapeHtml(match.away_team)}</span>
     </div>
+    ${liveNote}
     ${deadlineNote}
     <div class="picks">
       <button class="pick-btn" data-pick="LOCAL" type="button">L</button>
@@ -548,10 +554,9 @@ const specialLabels = { CAMPEON: "Campeón", VICECAMPEON: "Vicecampeón", GOLEAD
 async function loadSpecial() {
   const session = getSession();
   if (!session) {
-    specialSection.hidden = true;
+    specialList.innerHTML = `<p class="empty-state">Creá tu carnet o iniciá sesión para cargar tus pronósticos especiales.</p>`;
     return;
   }
-  specialSection.hidden = false;
 
   try {
     const [catRes, mineRes, deadlineRes] = await Promise.all([
@@ -643,6 +648,31 @@ function renderSpecialCard(cat, mine, deadlinePassed) {
 }
 
 /* ============================================================
+   Menú de secciones (Votar / Tabla / Especiales)
+   ============================================================ */
+const segmentNav = document.getElementById("segmentNav");
+const segmentSections = {
+  votar: document.getElementById("partidosSection"),
+  tabla: document.getElementById("leaderboardSection"),
+  especiales: document.getElementById("specialSection"),
+};
+
+function switchSegment(name) {
+  Object.entries(segmentSections).forEach(([key, el]) => {
+    el.hidden = key !== name;
+  });
+  segmentNav.querySelectorAll(".segment-btn").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.segment === name);
+  });
+}
+
+segmentNav.addEventListener("click", (e) => {
+  const btn = e.target.closest(".segment-btn");
+  if (!btn) return;
+  switchSegment(btn.dataset.segment);
+});
+
+/* ============================================================
    Init
    ============================================================ */
 checkServerConnection();
@@ -651,3 +681,6 @@ loadMatches();
 loadLeaderboard();
 loadGroups();
 loadSpecial();
+
+// Refresca los partidos cada 60s para que el marcador en vivo se actualice solo
+setInterval(loadMatches, 60000);

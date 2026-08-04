@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { query, queryOne } from "../db";
+import { pool, query, queryOne } from "../db";
 import { requireAuth, AuthedRequest } from "../auth";
 import { Match, Prediction } from "../types";
 
@@ -14,6 +14,11 @@ const createPredictionSchema = z.object({
 // POST /predictions -> registrar (o corregir) el pronóstico del usuario logueado
 // Requiere estar autenticado (Authorization: Bearer <token>).
 // Solo se permite mientras el partido esté SCHEDULED (antes del inicio).
+//
+// Usa "SELECT ... FOR UPDATE" sobre el partido para evitar una condición de
+// carrera: si el administrador está calificando este mismo partido justo en
+// este momento, una de las dos operaciones espera a la otra en vez de que el
+// pronóstico quede guardado sin compararse nunca contra el resultado.
 predictionsRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
   const parsed = createPredictionSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -22,48 +27,74 @@ predictionsRouter.post("/", requireAuth, async (req: AuthedRequest, res) => {
   const { match_id, user_pick } = parsed.data;
   const user_id = req.userId!;
 
-  const match = await queryOne<Match>("SELECT * FROM matches WHERE id = $1", [match_id]);
-  if (!match) return res.status(404).json({ error: "Partido no encontrado" });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-  if (match.status !== "SCHEDULED") {
-    return res.status(409).json({
-      error: "No se pueden cargar/editar pronósticos de un partido ya finalizado",
-    });
-  }
-
-  if (match.matchday != null) {
-    const deadline = await queryOne<{ vote_deadline: string }>(
-      "SELECT vote_deadline FROM matchday_deadlines WHERE matchday = $1",
-      [match.matchday]
+    const { rows: matchRows } = await client.query<Match>(
+      "SELECT * FROM matches WHERE id = $1 FOR UPDATE",
+      [match_id]
     );
-    if (deadline && new Date() >= new Date(deadline.vote_deadline)) {
+    const match = matchRows[0];
+
+    if (!match) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Partido no encontrado" });
+    }
+
+    if (match.status !== "SCHEDULED") {
+      await client.query("ROLLBACK");
       return res.status(409).json({
-        error: `Ya pasó el horario límite para votar en la fecha ${match.matchday}.`,
+        error: "No se pueden cargar/editar pronósticos de un partido ya finalizado",
       });
     }
-  }
 
-  // Upsert: si el usuario ya pronosticó este partido, se actualiza su pick
-  const existing = await queryOne<Prediction>(
-    "SELECT * FROM predictions WHERE user_id = $1 AND match_id = $2",
-    [user_id, match_id]
-  );
+    if (match.matchday != null) {
+      const { rows: deadlineRows } = await client.query<{ vote_deadline: string }>(
+        "SELECT vote_deadline FROM matchday_deadlines WHERE matchday = $1",
+        [match.matchday]
+      );
+      const deadline = deadlineRows[0];
+      if (deadline && new Date() >= new Date(deadline.vote_deadline)) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          error: `Ya pasó el horario límite para votar en la fecha ${match.matchday}.`,
+        });
+      }
+    }
 
-  if (existing) {
-    await query("UPDATE predictions SET user_pick = $1 WHERE id = $2", [user_pick, existing.id]);
-  } else {
-    await query(
-      "INSERT INTO predictions (user_id, match_id, user_pick) VALUES ($1, $2, $3)",
-      [user_id, match_id, user_pick]
+    // Upsert: si el usuario ya pronosticó este partido, se actualiza su pick
+    const { rows: existingRows } = await client.query<Prediction>(
+      "SELECT * FROM predictions WHERE user_id = $1 AND match_id = $2",
+      [user_id, match_id]
     );
+    const existing = existingRows[0];
+
+    if (existing) {
+      await client.query("UPDATE predictions SET user_pick = $1 WHERE id = $2", [
+        user_pick,
+        existing.id,
+      ]);
+    } else {
+      await client.query(
+        "INSERT INTO predictions (user_id, match_id, user_pick) VALUES ($1, $2, $3)",
+        [user_id, match_id, user_pick]
+      );
+    }
+
+    await client.query("COMMIT");
+
+    const prediction = await queryOne(
+      "SELECT * FROM predictions WHERE user_id = $1 AND match_id = $2",
+      [user_id, match_id]
+    );
+    res.status(existing ? 200 : 201).json(prediction);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
-
-  const prediction = await queryOne(
-    "SELECT * FROM predictions WHERE user_id = $1 AND match_id = $2",
-    [user_id, match_id]
-  );
-
-  res.status(existing ? 200 : 201).json(prediction);
 });
 
 // GET /predictions/mine -> historial de pronósticos del usuario logueado

@@ -16,6 +16,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- extra_hits / extra_matches: aciertos y partidos jugados ANTES de usar el
+-- sistema (los que se cargaron a mano con "Cargar puntos que ya tenían").
+-- No están ligados a ningún partido real de la tabla `matches`, así que se
+-- guardan aparte y se suman al mostrar la tabla de posiciones, para que el
+-- conteo de aciertos ("5/18") refleje el total real, no solo los partidos
+-- que sí quedaron cargados individualmente en el sistema.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS extra_hits INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS extra_matches INTEGER NOT NULL DEFAULT 0;
+
 -- Sesiones de usuarios logueados (token simple tipo "bearer")
 CREATE TABLE IF NOT EXISTS sessions (
     id          SERIAL PRIMARY KEY,
@@ -47,6 +56,16 @@ CREATE TABLE IF NOT EXISTS matches (
                 CHECK (result IN ('LOCAL', 'EMPATE', 'VISITA')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Vínculo con API-Football (dashboard.api-football.com) para actualizar
+-- resultados en tiempo real. api_fixture_id lo carga el administrador
+-- buscando el partido en la API por fecha. live_* se actualiza solo
+-- mientras el partido está en curso; cuando termina (FT), se califica
+-- automáticamente con el Match Engine.
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS api_fixture_id INTEGER;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS live_home_score INTEGER;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS live_away_score INTEGER;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS live_status TEXT;
 
 -- Pronósticos de cada usuario para cada partido
 -- Un usuario solo puede tener UN pronóstico por partido (UNIQUE)

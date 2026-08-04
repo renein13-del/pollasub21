@@ -1,5 +1,8 @@
 # Polla Futbolera — Liga de Fútbol Paraguayo
 
+> **Versión 1.0.0 — la que está en producción** (pollasub21.onrender.com).
+> Las correcciones y ajustes chicos van sobre esta carpeta. Ver `CHANGELOG.md`.
+
 Backend simplificado estilo Polla.ya, con pronósticos 1X2 (LOCAL / EMPATE / VISITA)
 y calificación automática por partido. Pensado para desplegarse en internet
 (Render) con dominio propio.
@@ -159,6 +162,7 @@ Desde Render podés abrir una "Shell" del servicio (pestaña **Shell** en el das
 - `POST /admin/predictions` — `{ "user_id", "match_id", "user_pick" }` carga o corrige el pronóstico de un usuario a mano (no respeta horario límite ni estado del partido, a diferencia de `POST /predictions`)
 - `POST /admin/groups` — `{ "name": "Los del barrio" }` → crea un grupo y devuelve su código
 - `GET /admin/groups` — lista de grupos con cantidad de miembros
+- `GET /admin/groups/:id/members` — usuarios de un grupo puntual (para filtrar "Cargar puntos" y "Cargar pronósticos ya hechos")
 - `POST /admin/matchdays/:matchday/deadline` — `{ "vote_deadline": "2026-08-01T16:55" }` crea o actualiza el horario límite de esa fecha
 - `GET /admin/matchdays` — lista de horarios límite cargados
 - `DELETE /admin/matchdays/:matchday/deadline` — quita el límite de esa fecha
@@ -166,7 +170,6 @@ Desde Render podés abrir una "Shell" del servicio (pestaña **Shell** en el das
 - `POST /admin/special/:category/settle` — `{ "correct_answer": "Olimpia" }` carga (o corrige) la respuesta correcta de CAMPEON/VICECAMPEON/GOLEADOR y reparte los puntos
 - `POST /admin/special/deadline` — `{ "deadline": "2026-08-01T00:00" }` horario límite único para las 3 categorías especiales
 - `DELETE /admin/special/deadline` — quita el límite
-- `GET /admin/groups/:id/members` — usuarios de un grupo puntual (para filtrar "Cargar puntos" y "Cargar pronósticos ya hechos")
 
 ### Pronósticos especiales (requieren `Authorization: Bearer <token>` de usuario, salvo lo público)
 - `GET /special/categories` (público) — categorías, puntos y si ya se resolvieron

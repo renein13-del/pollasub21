@@ -12,8 +12,8 @@ leaderboardRouter.get("/", async (_req, res) => {
        u.last_name,
        u.nickname,
        u.total_points,
-       COUNT(CASE WHEN p.points_earned = 1 THEN 1 END) AS aciertos,
-       COUNT(CASE WHEN p.points_earned IS NOT NULL THEN 1 END) AS pronosticos_totales
+       COUNT(CASE WHEN p.points_earned = 1 THEN 1 END) + u.extra_hits AS aciertos,
+       COUNT(CASE WHEN p.points_earned IS NOT NULL THEN 1 END) + u.extra_matches AS pronosticos_totales
      FROM users u
      LEFT JOIN predictions p ON p.user_id = u.id
      GROUP BY u.id

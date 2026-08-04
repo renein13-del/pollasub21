@@ -92,6 +92,13 @@
     <p class="field__error" id="joinGroupError" role="alert" hidden></p>
   </section>
 
+  <!-- ============ MENÚ DE SECCIONES ============ -->
+  <nav class="segment-nav" id="segmentNav">
+    <button class="segment-btn is-active" type="button" data-segment="votar">Votar</button>
+    <button class="segment-btn" type="button" data-segment="tabla">Tabla</button>
+    <button class="segment-btn" type="button" data-segment="especiales">Especiales</button>
+  </nav>
+
   <!-- ============ PARTIDOS ============ -->
   <section class="section" id="partidosSection" aria-labelledby="partidosTitulo">
     <div class="section__head">
@@ -112,7 +119,7 @@
   </section>
 
   <!-- ============ TABLA DE POSICIONES ============ -->
-  <section class="section" id="leaderboardSection" aria-labelledby="leaderboardTitulo">
+  <section class="section" id="leaderboardSection" aria-labelledby="leaderboardTitulo" hidden>
     <div class="section__head">
       <h2 class="section__title" id="leaderboardTitulo">Tabla de posiciones</h2>
       <p class="section__hint">Puntos totales, de mayor a menor.</p>

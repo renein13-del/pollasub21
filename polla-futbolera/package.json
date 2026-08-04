@@ -1,6 +1,6 @@
 {
   "name": "polla-futbolera",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Backend de polla futbolera 1X2 para el fútbol paraguayo",
   "main": "dist/index.js",
   "scripts": {

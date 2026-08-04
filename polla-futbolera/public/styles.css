@@ -122,10 +122,6 @@ main {
   padding: 0 20px 80px;
 }
 
-.section {
-  margin-top: 64px;
-}
-
 .section__head {
   display: flex;
   align-items: baseline;
@@ -542,6 +538,38 @@ main {
   padding: 8px 12px;
 }
 
+/* ===========================================================
+   Menú de secciones (Votar / Tabla / Especiales)
+   =========================================================== */
+.segment-nav {
+  display: flex;
+  gap: 8px;
+  margin: 28px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.segment-btn {
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-dim);
+  padding: 10px 4px;
+  cursor: pointer;
+  margin-right: 20px;
+}
+
+.segment-btn.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--gold);
+}
+
+.section {
+  margin-top: 28px;
+}
+
 .matchday-filter {
   display: flex;
   align-items: center;
@@ -552,6 +580,82 @@ main {
 .matchday-filter .field__input {
   width: 90px;
 }
+
+/* ===========================================================
+   Vinculación con API-Football
+   =========================================================== */
+.fixture-link {
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.fixture-link__panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.fixture-results {
+  display: grid;
+  gap: 6px;
+}
+
+.fixture-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+/* ===========================================================
+   Matriz de votos por fecha
+   =========================================================== */
+.votes-matrix-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.votes-matrix {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.votes-matrix th,
+.votes-matrix td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  text-align: center;
+}
+
+.votes-matrix thead th {
+  background: var(--bg-elevated-2);
+  color: var(--ink-dim);
+  font-weight: 700;
+  vertical-align: bottom;
+}
+
+.votes-matrix tbody th {
+  background: var(--bg-elevated);
+  text-align: left;
+  position: sticky;
+  left: 0;
+  font-weight: 700;
+}
+
+.votes-matrix td.pick-local { color: var(--silver); }
+.votes-matrix td.pick-empate { color: var(--gold); }
+.votes-matrix td.pick-visita { color: var(--red); }
+.votes-matrix td.pick-empty { color: var(--ink-dim); }
+.votes-matrix td.pick-hit { font-weight: 700; text-decoration: underline; }
 
 .footer {
   text-align: center;

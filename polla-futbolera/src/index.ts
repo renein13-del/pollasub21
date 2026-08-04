@@ -9,6 +9,8 @@ import { leaderboardRouter } from "./routes/leaderboard";
 import { adminRouter } from "./routes/admin";
 import { groupsRouter } from "./routes/groups";
 import { specialRouter } from "./routes/special";
+import { isApiFootballConfigured } from "./apiFootball";
+import { syncLiveScores } from "./liveScores";
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -47,6 +49,18 @@ async function main() {
   app.listen(PORT, () => {
     console.log(`Polla Futbolera corriendo en http://localhost:${PORT}`);
   });
+
+  // Resultados en tiempo real (API-Football): revisa cada N minutos los
+  // partidos vinculados y los califica solo cuando terminan.
+  if (isApiFootballConfigured()) {
+    const pollMinutes = Number(process.env.LIVE_SCORES_POLL_MINUTES) || 3;
+    console.log(`⚽ Sincronización de resultados en vivo activa cada ${pollMinutes} minuto(s).`);
+    setInterval(() => {
+      syncLiveScores().catch((err) => console.error("Error en sync de resultados en vivo:", err));
+    }, pollMinutes * 60 * 1000);
+  } else {
+    console.log("ℹ️  API-Football no está configurada — los resultados se siguen cargando a mano.");
+  }
 }
 
 main().catch((err) => {

@@ -94,11 +94,51 @@
       </form>
     </section>
 
+    <!-- ============ MATRIZ DE VOTOS POR FECHA ============ -->
+    <section class="section" aria-labelledby="matrizTitulo">
+      <div class="section__head">
+        <h2 class="section__title" id="matrizTitulo">Votos por fecha (de un vistazo)</h2>
+        <p class="section__hint">Filas: usuarios. Columnas: partidos de la fecha elegida.</p>
+      </div>
+      <label class="field field--compact" style="max-width:220px; margin-bottom:14px;">
+        <span class="field__label">Fecha</span>
+        <select class="field__input" id="matrixMatchdaySelect">
+          <option value="">Elegí una fecha…</option>
+        </select>
+      </label>
+      <div id="votesMatrixWrap" class="votes-matrix-wrap">
+        <p class="empty-state">Elegí una fecha arriba para ver los votos.</p>
+      </div>
+    </section>
+
+    <!-- ============ REPARAR PRONÓSTICOS SIN CALIFICAR ============ -->
+    <section class="section" aria-labelledby="repairTitulo">
+      <div class="section__head">
+        <h2 class="section__title" id="repairTitulo">⚠️ Pronósticos sin calificar</h2>
+        <p class="section__hint">Pasa cuando alguien vota justo en el instante en que cargás un resultado. Revisá y reparalo acá.</p>
+      </div>
+      <p class="section__hint" id="orphanedCount">Revisando…</p>
+      <button class="btn btn--primary" id="repairBtn" type="button" hidden>Reparar ahora</button>
+      <p class="field__error" id="repairError" role="alert" hidden></p>
+      <p class="section__hint" id="repairResult" hidden></p>
+    </section>
+
+    <!-- ============ RESULTADOS EN TIEMPO REAL (API-FOOTBALL) ============ -->
+    <section class="section" aria-labelledby="liveScoresTitulo">
+      <div class="section__head">
+        <h2 class="section__title" id="liveScoresTitulo">Resultados en tiempo real</h2>
+        <p class="section__hint" id="liveScoresStatus">Revisando configuración…</p>
+      </div>
+      <button class="btn btn--ghost" id="syncNowBtn" type="button">Sincronizar ahora</button>
+      <p class="field__error" id="syncError" role="alert" hidden></p>
+      <p class="section__hint" id="syncResult" hidden></p>
+    </section>
+
     <!-- ============ PARTIDOS PROGRAMADOS: cargar resultado ============ -->
     <section class="section" aria-labelledby="programadosTitulo">
       <div class="section__head">
         <h2 class="section__title" id="programadosTitulo">Partidos programados</h2>
-        <p class="section__hint">Elegí el resultado final para calificar los pronósticos.</p>
+        <p class="section__hint">Elegí el resultado final para calificar los pronósticos, o vinculá el partido con API-Football para que se cargue solo.</p>
       </div>
       <div class="matches" id="scheduledList">
         <p class="empty-state">Cargando…</p>
@@ -142,6 +182,30 @@
         <button class="btn btn--ghost" type="submit">Aplicar puntos</button>
         <p class="field__error" id="pointsError" role="alert" hidden></p>
         <p class="section__hint" id="pointsSuccess" hidden></p>
+      </form>
+
+      <div class="section__head" style="margin-top:28px;">
+        <h2 class="section__title" style="font-size:20px;">Aciertos y partidos previos al sistema</h2>
+        <p class="section__hint">Para que la tabla muestre el conteo real (ej: "5/18") sumando los partidos que jugaron antes de usar la web. Fija el número — no lo suma.</p>
+      </div>
+      <form id="extraStatsForm" class="ticket__form" style="max-width:480px;" novalidate>
+        <label class="field">
+          <span class="field__label">Usuario</span>
+          <select class="field__input" name="user_id" id="extraStatsUserSelect">
+            <option value="">Cargando usuarios…</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">Partidos jugados antes del sistema</span>
+          <input class="field__input" type="number" name="extra_matches" placeholder="Ej: 6" min="0" required>
+        </label>
+        <label class="field">
+          <span class="field__label">De esos, cuántos acertó</span>
+          <input class="field__input" type="number" name="extra_hits" placeholder="Ej: 2" min="0" required>
+        </label>
+        <button class="btn btn--ghost" type="submit">Guardar</button>
+        <p class="field__error" id="extraStatsError" role="alert" hidden></p>
+        <p class="section__hint" id="extraStatsSuccess" hidden></p>
       </form>
     </section>
 
