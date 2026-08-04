@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.1 — Hotfix: error de compilación en src/apiFootball.ts
+
+El build fallaba en Render con `TS18046: 'data' is of type 'unknown'`
+(dos veces, en `searchFixturesByDate` y `getFixtureById`). TypeScript tipa
+`res.json()` como `unknown` por seguridad; faltaba decirle explícitamente
+qué forma tiene la respuesta. Se agregó una interfaz `ApiFootballResponse`
+y un cast explícito. No cambia ningún comportamiento, solo hace que
+`tsc` compile.
+
 ## v1.3.0 — Matriz de votos por fecha
 
 Nueva sección en el panel: **"Votos por fecha (de un vistazo)"**. Elegís una

@@ -13,7 +13,11 @@ export function isApiFootballConfigured(): boolean {
   return Boolean(apiKey && leagueId && season);
 }
 
-async function apiFootballGet(path: string, params: Record<string, string>) {
+interface ApiFootballResponse {
+  response: any[];
+}
+
+async function apiFootballGet(path: string, params: Record<string, string>): Promise<ApiFootballResponse> {
   const { apiKey } = getConfig();
   if (!apiKey) {
     throw new Error("Falta API_FOOTBALL_KEY en las variables de entorno");
@@ -29,7 +33,7 @@ async function apiFootballGet(path: string, params: Record<string, string>) {
   if (!res.ok) {
     throw new Error(`API-Football respondió ${res.status}`);
   }
-  return res.json();
+  return (await res.json()) as ApiFootballResponse;
 }
 
 export interface FixtureSummary {
