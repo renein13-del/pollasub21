@@ -11,6 +11,7 @@ import { groupsRouter } from "./routes/groups";
 import { specialRouter } from "./routes/special";
 import { isApiFootballConfigured } from "./apiFootball";
 import { syncLiveScores } from "./liveScores";
+import { isMailerConfigured } from "./mailer";
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -24,6 +25,12 @@ async function main() {
   if (!process.env.ADMIN_PASSWORD) {
     console.warn(
       "⚠️  No configuraste ADMIN_PASSWORD — el panel de administrador no va a poder iniciar sesión."
+    );
+  }
+
+  if (!isMailerConfigured()) {
+    console.warn(
+      "⚠️  No configuraste SMTP_HOST/SMTP_USER/SMTP_PASS — \"Olvidé mi contraseña\" no va a poder enviar correos (el enlace queda solo en los logs)."
     );
   }
 

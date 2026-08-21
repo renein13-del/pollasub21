@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.6.0 — Recuperar contraseña por correo
+
+### "¿Olvidaste tu contraseña?"
+Nuevo flujo completo de recuperación:
+- En el login, un enlace abre un modal para pedir un enlace de restablecimiento
+  por correo (`POST /auth/forgot-password`). La respuesta es siempre el mismo
+  mensaje genérico, para no revelar si un correo está registrado o no.
+- El correo trae un enlace a `reset-password.html` con un token de un solo uso
+  (válido 1 hora, tabla `password_resets`). Ahí el usuario elige su nueva
+  contraseña; al guardarla se cierran todas sus sesiones abiertas por seguridad.
+- El envío usa SMTP genérico vía Nodemailer, configurable con variables de
+  entorno (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`).
+  Sin esas variables, el enlace queda solo en los logs del servidor (no rompe
+  el resto de la app).
+
+### Correo en el carnet (nuevo campo, opcional)
+Los usuarios no tenían correo guardado — se agregó una columna `email` opcional
+y única a `users`. El registro ahora lo pide como campo opcional, y quien ya
+tenía carnet ve un aviso para cargarlo la primera vez que inicia sesión
+(`PATCH /auth/email`), así puede usar la recuperación de contraseña más
+adelante sin perder su cuenta actual.
+
 ## v1.5.0 — Colores de acierto/error + vista de comparación por fecha
 
 ### Verde/rojo tenues para acierto y error

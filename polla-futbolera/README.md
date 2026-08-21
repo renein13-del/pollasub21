@@ -44,12 +44,13 @@ polla-futbolera/
 
 Entrando al dominio (o a `http://localhost:3000` en local):
 
-1. **Crear carnet** — cada persona carga su **nombre**, **apellido**, un **sobrenombre** único, el **código de su grupo de amigos** (se lo da el administrador) y una **contraseña** (mínimo 6 caracteres). Al registrarse, queda unido automáticamente a ese grupo — **el código tiene que existir de antes**, así que primero creá el grupo en el panel de administrador y después compartí el código con tus amigos.
+1. **Crear carnet** — cada persona carga su **nombre**, **apellido**, un **sobrenombre** único, el **código de su grupo de amigos** (se lo da el administrador), un **correo opcional** (para poder recuperar la contraseña más adelante) y una **contraseña** (mínimo 6 caracteres). Al registrarse, queda unido automáticamente a ese grupo — **el código tiene que existir de antes**, así que primero creá el grupo en el panel de administrador y después compartí el código con tus amigos.
 2. **Ya tengo carnet** — con el sobrenombre y la contraseña, cualquiera inicia sesión desde cualquier dispositivo.
 3. La sesión queda guardada en el navegador; desde ahí ya puede pronosticar tocando **Local / Empate / Visita** en cada partido.
 4. La tabla de posiciones que ve es la de **su grupo** (no una tabla general con todos) — así cada uno compite solo contra su propia gente.
 5. Si alguien pertenece a más de un grupo (por ejemplo, se unió con otro código después), le aparece una pestaña por cada grupo para cambiar entre tablas.
 6. Los partidos aparecen filtrados **por la fecha más próxima que todavía tenga partidos programados** (no todos juntos); hay un selector arriba para cambiar de fecha manualmente.
+7. **¿Olvidaste tu contraseña?** — desde el login, abre un modal donde ingresás tu correo y te llega un enlace (válido 1 hora) para elegir una nueva. Si tu carnet no tiene correo cargado (los creados antes de esta función), un aviso te deja agregarlo apenas iniciás sesión, así podés usar esta opción en el futuro. Requiere tener configurado el envío de correo (`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`, ver sección de despliegue) — sin eso, el enlace queda solo en los logs del servidor.
 
 ## Panel de administrador
 
@@ -113,6 +114,8 @@ Render despliega desde un repositorio. Si no tenés uno: creá una cuenta en [gi
 3. En **Environment**, agregá las variables:
    - `ADMIN_PASSWORD` → tu contraseña de administrador
    - `DATABASE_URL` → el "Internal Database URL" que copiaste en el paso 2
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` → credenciales SMTP para poder enviar el correo de "olvidé mi contraseña" (por ejemplo, con Gmail: `smtp.gmail.com`, puerto `587`, tu Gmail y una ["contraseña de aplicación"](https://myaccount.google.com/apppasswords), no tu contraseña normal). Opcional: si no las cargás, la web sigue funcionando pero ese correo no se envía (queda un aviso en los logs).
+   - `MAIL_FROM` (opcional) → remitente que ven los usuarios en el correo recibido; si no se define, se usa `SMTP_USER`.
 4. **Create Web Service**. Render te va a dar una URL tipo `polla-futbolera.onrender.com` — probá que funcione ahí antes de seguir.
 
 ### 4. Conectar tu dominio (pollasub21.com)
@@ -129,19 +132,23 @@ Desde Render podés abrir una "Shell" del servicio (pestaña **Shell** en el das
 
 ## Modelo de datos
 
-- **users**: `id, first_name, last_name, nickname (único), password_hash, total_points`
+- **users**: `id, first_name, last_name, nickname (único), password_hash, total_points, email (único, opcional)`
 - **sessions**: tokens de usuarios logueados
 - **admin_sessions**: tokens de sesión de administrador
+- **password_resets**: tokens de "olvidé mi contraseña" — `user_id, token (único), expires_at, used_at`
 - **matches**: `id, local_team, away_team, matchday, kickoff_at, status (SCHEDULED|FINISHED), result (LOCAL|EMPATE|VISITA)`
 - **predictions**: `id, user_id, match_id, user_pick, points_earned` — `UNIQUE(user_id, match_id)`: un solo pronóstico por usuario y partido (se puede corregir mientras el partido siga `SCHEDULED`).
 
 ## Endpoints
 
 ### Autenticación (usuarios)
-- `POST /auth/register` — `{ first_name, last_name, nickname, password, group_code }` → `{ user, token, group }` (el `group_code` tiene que corresponder a un grupo ya creado por el administrador)
+- `POST /auth/register` — `{ first_name, last_name, nickname, password, group_code, email? }` → `{ user, token, group }` (el `group_code` tiene que corresponder a un grupo ya creado por el administrador; `email` es opcional)
 - `POST /auth/login` — `{ nickname, password }` → `{ user, token }`
 - `GET /auth/me` — requiere `Authorization: Bearer <token>`
 - `POST /auth/logout` — requiere `Authorization: Bearer <token>`
+- `PATCH /auth/email` — requiere `Authorization: Bearer <token>`: `{ email }` → carga o actualiza el correo del usuario logueado
+- `POST /auth/forgot-password` — `{ email }` → siempre responde el mismo mensaje genérico (no revela si el correo existe); si hay un usuario con ese correo, le manda un enlace con token de un solo uso, válido 1 hora
+- `POST /auth/reset-password` — `{ token, password }` → valida el token, actualiza la contraseña y cierra las sesiones abiertas de ese usuario
 
 ### Autenticación (administrador)
 - `POST /auth/admin/login` — `{ password }` → `{ token }` (la contraseña es `ADMIN_PASSWORD`)

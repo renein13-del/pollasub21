@@ -355,10 +355,11 @@ main {
 }
 
 .ticket__form {
-  display: grid;
   gap: 16px;
   max-width: 360px;
 }
+
+.ticket__form:not([hidden]) { display: grid; }
 
 .ticket__stub {
   padding: 32px 24px;
@@ -994,6 +995,148 @@ main {
 }
 
 /* ===========================================================
+   Link tipo texto (ej: "¿Olvidaste tu contraseña?")
+   =========================================================== */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: -4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s var(--ease);
+}
+
+.link-btn:hover { color: var(--cyan); }
+
+/* ===========================================================
+   Modal genérico (recuperar contraseña, etc.)
+   =========================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 20px;
+  background: rgba(4, 5, 8, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fadeIn 0.2s var(--ease);
+}
+
+/* [hidden] tiene la misma especificidad que .modal-overlay: si el display
+   flex fuera parte de la regla de arriba, ganaría por venir de una hoja de
+   autor y el modal quedaría visible aunque tenga el atributo hidden. */
+.modal-overlay:not([hidden]) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  background: linear-gradient(165deg, var(--glass-strong), var(--glass));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(18px) saturate(130%);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: 0 20px 48px -20px rgba(0, 0, 0, 0.6), inset 0 1px 0 var(--glass-highlight);
+  animation: popIn 0.3s var(--ease);
+}
+
+.modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.modal__close:hover { color: var(--red); border-color: var(--red); }
+
+.modal__hint {
+  font-size: 14px;
+  color: var(--ink-dim);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.modal__success {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--hit-ink);
+  background: var(--hit-bg);
+  border: 1px solid rgba(57, 255, 136, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin: 0;
+  animation: slideDown 0.25s var(--ease);
+}
+
+/* ===========================================================
+   Aviso: cargar correo (para poder recuperar la contraseña)
+   =========================================================== */
+.email-banner:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.email-banner {
+  margin-top: 20px;
+  gap: 14px 20px;
+  background: linear-gradient(165deg, var(--glass-strong), var(--glass));
+  border: 1px solid rgba(242, 183, 5, 0.3);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  animation: slideDown 0.3s var(--ease);
+}
+
+.email-banner__text {
+  flex: 1 1 240px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.email-banner__form {
+  display: flex;
+  gap: 10px;
+  flex: 1 1 320px;
+}
+
+.email-banner__form .field__input { flex: 1; min-width: 0; }
+
+.email-banner .field__error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* ===========================================================
    Banner de estado de conexión
    =========================================================== */
 .conn-banner {
@@ -1023,4 +1166,6 @@ main {
   .hero { padding: 40px 0 16px; }
   .board__row { grid-template-columns: 32px 1fr minmax(64px, auto); padding: 12px; gap: 10px; }
   .board__pos { font-size: 15px; }
+  .modal { padding: 26px 20px; }
+  .email-banner__form { flex-direction: column; align-items: stretch; }
 }

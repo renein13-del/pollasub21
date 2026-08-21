@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS extra_hits INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS extra_matches INTEGER NOT NULL DEFAULT 0;
 
+-- Correo opcional, para poder recuperar la contraseña. Los usuarios viejos
+-- (de antes de esta columna) empiezan con NULL y lo pueden cargar después
+-- desde la web ya logueados; Postgres permite varios NULL en una columna
+-- UNIQUE, así que no hay conflicto hasta que alguien carga un email real.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
+
 -- Sesiones de usuarios logueados (token simple tipo "bearer")
 CREATE TABLE IF NOT EXISTS sessions (
     id          SERIAL PRIMARY KEY,
@@ -39,6 +45,19 @@ CREATE TABLE IF NOT EXISTS admin_sessions (
     token       TEXT NOT NULL UNIQUE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Tokens de "olvidé mi contraseña" (un solo uso, con vencimiento).
+-- used_at queda NULL hasta que se usa; expires_at se valida al restablecer.
+CREATE TABLE IF NOT EXISTS password_resets (
+    id          SERIAL PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token       TEXT NOT NULL UNIQUE,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
 
 -- Partidos del torneo
 -- status:  SCHEDULED  -> aún no se jugó / no se cargó resultado

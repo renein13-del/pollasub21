@@ -55,6 +55,10 @@
             <input class="field__input" type="text" name="group_code" placeholder="Te lo pasa quien organiza tu grupo" required maxlength="10">
           </label>
           <label class="field">
+            <span class="field__label">Correo (opcional)</span>
+            <input class="field__input" type="email" name="email" placeholder="Para poder recuperar tu contraseña" maxlength="255" autocomplete="email">
+          </label>
+          <label class="field">
             <span class="field__label">Contraseña</span>
             <input class="field__input" type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="new-password">
           </label>
@@ -74,10 +78,23 @@
             <input class="field__input" type="password" name="password" placeholder="Tu contraseña" required autocomplete="current-password">
           </label>
           <button class="btn btn--ghost" type="submit">Entrar</button>
+          <button class="link-btn" type="button" id="forgotPasswordOpen">¿Olvidaste tu contraseña?</button>
           <p class="field__error" id="loginError" role="alert" hidden></p>
         </form>
       </div>
     </div>
+  </section>
+
+  <!-- ============ AVISO: CARGAR CORREO (para poder recuperar la clave) ============ -->
+  <section class="email-banner" id="emailBanner" hidden>
+    <p class="email-banner__text">
+      Agregá tu correo para poder recuperar tu contraseña si la olvidás.
+    </p>
+    <form class="email-banner__form" id="emailBannerForm" novalidate>
+      <input class="field__input" type="email" name="email" placeholder="tu@correo.com" required maxlength="255">
+      <button class="btn btn--ghost" type="submit">Guardar correo</button>
+    </form>
+    <p class="field__error" id="emailBannerError" role="alert" hidden></p>
   </section>
 
   <!-- ============ MIS GRUPOS ============ -->
@@ -146,6 +163,27 @@
   </section>
 
 </main>
+
+<!-- ============ MODAL: OLVIDÉ MI CONTRASEÑA ============ -->
+<div class="modal-overlay" id="forgotPasswordOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="forgotPasswordTitle">
+    <button class="modal__close" type="button" id="forgotPasswordClose" aria-label="Cerrar">✕</button>
+    <p class="ticket__eyebrow">Carnet de socio</p>
+    <h2 class="ticket__title" id="forgotPasswordTitle">Recuperar contraseña</h2>
+    <p class="modal__hint" id="forgotPasswordHint">
+      Ingresá el correo que cargaste en tu carnet y te mandamos un enlace para elegir una nueva contraseña.
+    </p>
+    <form class="ticket__form" id="forgotPasswordForm" novalidate>
+      <label class="field">
+        <span class="field__label">Correo</span>
+        <input class="field__input" type="email" name="email" placeholder="tu@correo.com" required maxlength="255">
+      </label>
+      <button class="btn btn--primary" type="submit">Enviar enlace</button>
+      <p class="field__error" id="forgotPasswordError" role="alert" hidden></p>
+    </form>
+    <p class="modal__success" id="forgotPasswordSuccess" role="status" hidden></p>
+  </div>
+</div>
 
 <footer class="footer">
   <p>La Polla · hecho para los hinchas del fútbol paraguayo.</p>

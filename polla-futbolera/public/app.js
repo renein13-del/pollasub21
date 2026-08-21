@@ -107,7 +107,58 @@ function renderSession() {
     registroSection.hidden = false;
     gruposSection.hidden = true;
   }
+
+  renderEmailBanner();
 }
+
+/* ============================================================
+   Aviso para cargar correo (usuarios logueados sin email, para
+   poder usar "olvidé mi contraseña" más adelante)
+   ============================================================ */
+const emailBanner = document.getElementById("emailBanner");
+const emailBannerForm = document.getElementById("emailBannerForm");
+const emailBannerError = document.getElementById("emailBannerError");
+
+function renderEmailBanner() {
+  const session = getSession();
+  emailBanner.hidden = !session || Boolean(session.user.email);
+}
+
+emailBannerForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  emailBannerError.hidden = true;
+
+  const session = getSession();
+  if (!session) return;
+
+  const formData = new FormData(emailBannerForm);
+  const email = formData.get("email").toString().trim();
+
+  const submitBtn = emailBannerForm.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/auth/email`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      emailBannerError.textContent = data.error || "No se pudo guardar el correo.";
+      emailBannerError.hidden = false;
+      return;
+    }
+
+    setSession(session.token, { ...session.user, email: data.email });
+  } catch {
+    emailBannerError.textContent = "No se pudo conectar con el servidor.";
+    emailBannerError.hidden = false;
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
 
 /* ============================================================
    Registro (nombre, apellido, sobrenombre, contraseña)
@@ -126,6 +177,7 @@ registroForm.addEventListener("submit", async (e) => {
     nickname: formData.get("nickname").toString().trim(),
     password: formData.get("password").toString(),
     group_code: formData.get("group_code").toString().trim(),
+    email: formData.get("email") ? formData.get("email").toString().trim() : "",
   };
 
   const submitBtn = registroForm.querySelector("button[type=submit]");
@@ -199,6 +251,72 @@ loginForm.addEventListener("submit", async (e) => {
     loginError.textContent = "No se pudo conectar con el servidor.";
     loginError.hidden = false;
     checkServerConnection();
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+/* ============================================================
+   Olvidé mi contraseña (modal)
+   ============================================================ */
+const forgotPasswordOverlay = document.getElementById("forgotPasswordOverlay");
+const forgotPasswordOpen = document.getElementById("forgotPasswordOpen");
+const forgotPasswordClose = document.getElementById("forgotPasswordClose");
+const forgotPasswordForm = document.getElementById("forgotPasswordForm");
+const forgotPasswordError = document.getElementById("forgotPasswordError");
+const forgotPasswordSuccess = document.getElementById("forgotPasswordSuccess");
+
+function openForgotPassword() {
+  forgotPasswordForm.reset();
+  forgotPasswordForm.hidden = false;
+  forgotPasswordError.hidden = true;
+  forgotPasswordSuccess.hidden = true;
+  forgotPasswordOverlay.hidden = false;
+}
+
+function closeForgotPassword() {
+  forgotPasswordOverlay.hidden = true;
+}
+
+forgotPasswordOpen.addEventListener("click", openForgotPassword);
+forgotPasswordClose.addEventListener("click", closeForgotPassword);
+forgotPasswordOverlay.addEventListener("click", (e) => {
+  if (e.target === forgotPasswordOverlay) closeForgotPassword();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !forgotPasswordOverlay.hidden) closeForgotPassword();
+});
+
+forgotPasswordForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  forgotPasswordError.hidden = true;
+
+  const formData = new FormData(forgotPasswordForm);
+  const email = formData.get("email").toString().trim();
+
+  const submitBtn = forgotPasswordForm.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      forgotPasswordError.textContent = data.error || "No se pudo procesar el pedido.";
+      forgotPasswordError.hidden = false;
+      return;
+    }
+
+    forgotPasswordForm.hidden = true;
+    forgotPasswordSuccess.textContent = data.message;
+    forgotPasswordSuccess.hidden = false;
+  } catch {
+    forgotPasswordError.textContent = "No se pudo conectar con el servidor.";
+    forgotPasswordError.hidden = false;
   } finally {
     submitBtn.disabled = false;
   }
