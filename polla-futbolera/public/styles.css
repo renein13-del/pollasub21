@@ -656,6 +656,47 @@ main {
 }
 
 /* ===========================================================
+   Pronósticos especiales (Campeón / Vicecampeón / Goleador)
+   -----------------------------------------------------------
+   #specialList lo llena app.js con .match-card reciclados —
+   estos ajustes están todos escopeados a #specialList para no
+   afectar las tarjetas de partidos ni otros formularios.
+   =========================================================== */
+#specialList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+#specialList .match-card {
+  padding: 22px 20px;
+  gap: 14px;
+}
+
+#specialList .ticket__form {
+  max-width: none;
+  width: 100%;
+  gap: 10px;
+  justify-self: center;
+}
+
+#specialList .field__input {
+  width: 100%;
+  text-align: center;
+}
+
+#specialList .btn { width: 100%; }
+
+.special-legend {
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+/* ===========================================================
    Tabla de posiciones
    =========================================================== */
 .board {
