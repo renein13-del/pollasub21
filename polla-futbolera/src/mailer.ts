@@ -1,29 +1,20 @@
-import nodemailer, { Transporter } from "nodemailer";
+import { Resend } from "resend";
 
-// SMTP genérico por variables de entorno — funciona con Gmail (con
-// "contraseña de aplicación"), Zoho, o cualquier proveedor SMTP.
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
-const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER || "no-responder@lapolla.app";
+// Envío de correos vía Resend — https://resend.com
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const MAIL_FROM = process.env.MAIL_FROM || "La Polla <no-responder@lapolla.app>";
 
 export function isMailerConfigured(): boolean {
-  return Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS);
+  return Boolean(RESEND_API_KEY);
 }
 
-let transporter: Transporter | null = null;
+let resendClient: Resend | null = null;
 
-function getTransporter(): Transporter {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
+function getResendClient(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(RESEND_API_KEY);
   }
-  return transporter;
+  return resendClient;
 }
 
 function resetPasswordHtml(nickname: string, resetUrl: string): string {
@@ -76,17 +67,23 @@ export async function sendPasswordResetEmail(
   resetUrl: string
 ): Promise<void> {
   if (!isMailerConfigured()) {
-    console.warn(
-      `⚠️  SMTP no configurado (faltan SMTP_HOST/SMTP_USER/SMTP_PASS) — no se pudo enviar el correo de recuperación a ${to}. Enlace: ${resetUrl}`
+    console.error(
+      `❌ Falta la variable de entorno RESEND_API_KEY — no se pudo enviar el correo de recuperación a ${to}. ` +
+      `Configurala en tu .env (local) o en las Environment Variables de Render para habilitar el envío de correos. ` +
+      `Enlace generado (solo queda en los logs): ${resetUrl}`
     );
     return;
   }
 
-  await getTransporter().sendMail({
+  const { error } = await getResendClient().emails.send({
     from: MAIL_FROM,
     to,
     subject: "Recuperá tu contraseña — La Polla",
     html: resetPasswordHtml(nickname, resetUrl),
     text: `Hola ${nickname}, pediste restablecer tu contraseña de La Polla. Entrá a este enlace (válido por 1 hora) para elegir una nueva: ${resetUrl}\n\nSi no pediste esto, ignorá este correo.`,
   });
+
+  if (error) {
+    throw new Error(`Resend no pudo enviar el correo a ${to}: ${error.message}`);
+  }
 }

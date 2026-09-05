@@ -30,7 +30,7 @@ async function main() {
 
   if (!isMailerConfigured()) {
     console.warn(
-      "⚠️  No configuraste SMTP_HOST/SMTP_USER/SMTP_PASS — \"Olvidé mi contraseña\" no va a poder enviar correos (el enlace queda solo en los logs)."
+      "⚠️  No configuraste RESEND_API_KEY — \"Olvidé mi contraseña\" no va a poder enviar correos (el enlace queda solo en los logs)."
     );
   }
 
